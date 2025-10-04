@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "868166433453",
+    "project_id": "roomie-mobil-project",
+    "storage_bucket": "roomie-mobil-project.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:868166433453:android:d46b4de9f02f8504a32424",
+        "android_client_info": {
+          "package_name": "com.example.roomie_mobil_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBiRTFGu71kaXAVjBl_rZo1n5gn8ncm1W8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
