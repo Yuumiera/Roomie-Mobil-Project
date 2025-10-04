@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -89,21 +90,49 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    await Future.delayed(const Duration(seconds: 2));
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Google Sign-In coming soon!'),
-          backgroundColor: Colors.orange,
-        ),
+    try {
+      // Google Sign-In işlemi
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      
+      if (googleUser == null) {
+        // Kullanıcı iptal etti
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Google authentication detayları
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Firebase credential oluştur
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
-    }
-    
-    if (mounted) {
+
+      // Firebase ile giriş yap
+      final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } catch (e) {
       setState(() {
         _isLoading = false;
       });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Google Sign-In failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -306,10 +335,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
                   onPressed: _isLoading ? null : _signInWithGoogle,
-                  icon: Icon(
-                    Icons.login,
-                    color: Colors.red.shade600,
-                    size: 20,
+                  icon: Image.asset(
+                    'assets/images/google_logo.png',
+                    width: 20,
+                    height: 20,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(
+                        Icons.login,
+                        color: Colors.red.shade600,
+                        size: 20,
+                      );
+                    },
                   ),
                   label: const Text('Sign in with Google'),
                   style: OutlinedButton.styleFrom(
