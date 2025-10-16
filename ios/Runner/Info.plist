@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>İlan eklerken galeriye erişmemiz gerekiyor.</string>
+  <key>NSCameraUsageDescription</key>
+  <string>İlan görsellerini çekmek için kameraya erişmemiz gerekiyor.</string>
+  <key>NSPhotoLibraryAddUsageDescription</key>
+  <string>Görselleri kaydetmek için fotoğraf galerisine yazma izni gerekir.</string>
 </dict>
 </plist>
