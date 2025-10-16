@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/cities.dart';
 
 class ApartmentListScreen extends StatefulWidget {
@@ -11,41 +13,7 @@ class ApartmentListScreen extends StatefulWidget {
 }
 
 class _ApartmentListScreenState extends State<ApartmentListScreen> {
-  // Sample apartment listings data
-  final List<Map<String, dynamic>> _apartmentListings = [
-    {
-      'title': 'Modern 2+1 Apartment',
-      'description': 'Furnished apartment with balcony',
-      'price': '₺3500/month',
-      'location': 'Beyoğlu, Istanbul',
-      'image': 'assets/images/apartment1.jpg',
-      'category': 'apartment',
-    },
-    {
-      'title': 'Luxury Studio Apartment',
-      'description': 'Fully furnished studio with city view',
-      'price': '₺2800/month',
-      'location': 'Kadıköy, Istanbul',
-      'image': 'assets/images/apartment2.jpg',
-      'category': 'apartment',
-    },
-    {
-      'title': 'Cozy 1+1 Apartment',
-      'description': 'Small apartment perfect for students',
-      'price': '₺2000/month',
-      'location': 'Beşiktaş, Istanbul',
-      'image': 'assets/images/apartment3.jpg',
-      'category': 'apartment',
-    },
-    {
-      'title': 'Spacious 3+1 Apartment',
-      'description': 'Large apartment with garden',
-      'price': '₺4500/month',
-      'location': 'Şişli, Istanbul',
-      'image': 'assets/images/apartment4.jpg',
-      'category': 'apartment',
-    },
-  ];
+  // Firestore-backed; remove hardcoded demo data
 
   String _selectedCity = 'Tümü';
 
@@ -53,11 +21,12 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
     _showAddListingDialog();
   }
 
-  List<Map<String, dynamic>> get _filteredListings {
-    return _apartmentListings.where((l) {
-      final bool cityOk = _selectedCity == 'Tümü' || (l['location'] as String).contains(_selectedCity);
-      return cityOk;
-    }).toList();
+  Stream<QuerySnapshot<Map<String, dynamic>>> _listingsStream() {
+    final query = FirebaseFirestore.instance
+        .collection('listings')
+        .where('category', isEqualTo: 'apartment');
+    if (_selectedCity == 'Tümü') return query.snapshots();
+    return query.where('city', isEqualTo: _selectedCity).snapshots();
   }
 
   void _showAddListingDialog() {
@@ -71,6 +40,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
     bool petsAllowed = false;
     final List<String> images = [];
     String ownerName = '';
+    final String ownerId = FirebaseAuth.instance.currentUser?.uid ?? '';
     // Apartment/House common features
     String roomCount = '';
     bool hasBalcony = false;
@@ -131,6 +101,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                     decoration: const InputDecoration(labelText: 'Şehir'),
                   ),
                   const SizedBox(height: 8),
+                  // ownerId artık otomatik atanıyor; kullanıcıdan alınmıyor
                   Align(
                     alignment: Alignment.centerLeft,
                     child: TextButton.icon(
@@ -249,7 +220,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
                 formKey.currentState!.save();
                 if (images.length < 4) {
@@ -259,43 +230,47 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                   return;
                 }
 
-                final bool exists = _apartmentListings.any((l) =>
-                    (l['title'] as String).toLowerCase() == title.toLowerCase() &&
-                    (l['location'] as String).contains(city));
-                if (exists) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Aynı ilan zaten mevcut.')),
-                  );
-                  return;
-                }
+                String finalOwnerName = ownerName;
+                try {
+                  final uid = ownerId;
+                  if (uid.isNotEmpty) {
+                    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+                    if (userDoc.exists) {
+                      finalOwnerName = (userDoc.data()?['name'] as String?)?.trim().isNotEmpty == true
+                          ? (userDoc.data()?['name'] as String)
+                          : finalOwnerName;
+                    }
+                  }
+                } catch (_) {}
 
-                setState(() {
-                  _apartmentListings.add({
-                    'title': title,
-                    'description': description,
-                    'price': '₺$price',
-                    'location': location.isEmpty ? city : location,
-                    'image': 'assets/images/apartment1.jpg',
-                    'imageUrl': imageUrl,
-                    'petsAllowed': petsAllowed,
-                    'images': images,
-                    'ownerName': ownerName,
-                    'category': 'apartment',
-                    'roomCount': roomCount,
-                    'hasBalcony': hasBalcony,
-                    'balconyCount': balconyCount,
-                    'buildingFloors': buildingFloors,
-                    'apartmentFloor': apartmentFloor,
-                    'bathrooms': bathrooms,
-                    'buildingAge': buildingAge,
-                    'squareMeters': squareMeters,
-                    'heating': heating,
-                    'hasElevator': hasElevator,
-                    'inComplex': inComplex,
-                    'hasDues': hasDues,
-                    'duesAmount': duesAmount,
-                    'addressDirections': addressDirections,
-                  });
+                await FirebaseFirestore.instance.collection('listings').add({
+                  'title': title,
+                  'description': description,
+                  'price': '₺$price',
+                  'location': location.isEmpty ? city : location,
+                  'city': city,
+                  'imageUrl': imageUrl,
+                  'petsAllowed': petsAllowed,
+                  'images': images, // local paths won't sync; keep optional
+                  'ownerName': finalOwnerName.isNotEmpty ? finalOwnerName : ownerName,
+                  'ownerId': ownerId,
+                  'category': 'apartment',
+                  'roomCount': roomCount,
+                  'hasBalcony': hasBalcony,
+                  'balconyCount': balconyCount,
+                  'buildingFloors': buildingFloors,
+                  'apartmentFloor': apartmentFloor,
+                  'bathrooms': bathrooms,
+                  'buildingAge': buildingAge,
+                  'squareMeters': squareMeters,
+                  'heating': heating,
+                  'hasElevator': hasElevator,
+                  'inComplex': inComplex,
+                  'hasDues': hasDues,
+                  'duesAmount': duesAmount,
+                  'addressDirections': addressDirections,
+                  'createdAt': FieldValue.serverTimestamp(),
+                  'updatedAt': FieldValue.serverTimestamp(),
                 });
                 Navigator.pop(context);
               },
@@ -361,15 +336,25 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
               ),
               const SizedBox(height: 12),
               Expanded(
-                child: _filteredListings.isEmpty
-                    ? const Center(child: Text('Sonuç bulunamadı'))
-                    : ListView.builder(
-                        itemCount: _filteredListings.length,
-                        itemBuilder: (context, index) {
-                          final listing = _filteredListings[index];
-                          return _buildListingCard(listing);
-                        },
-                      ),
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _listingsStream(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final docs = snapshot.data?.docs ?? [];
+                    if (docs.isEmpty) {
+                      return const Center(child: Text('Sonuç bulunamadı'));
+                    }
+                    return ListView.builder(
+                      itemCount: docs.length,
+                      itemBuilder: (context, index) {
+                        final data = docs[index].data();
+                        return _buildListingCard(data);
+                      },
+                    );
+                  },
+                ),
               ),
             ],
           ),

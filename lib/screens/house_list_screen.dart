@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/cities.dart';
 
 class HouseListScreen extends StatefulWidget {
@@ -11,44 +13,7 @@ class HouseListScreen extends StatefulWidget {
 }
 
 class _HouseListScreenState extends State<HouseListScreen> {
-  // Sample house listings data
-  final List<Map<String, dynamic>> _houseListings = [
-    {
-      'title': 'Family House with Garden',
-      'description': '3 bedroom house with large garden',
-      'price': '₺6000/month',
-      'location': 'Beykoz, Istanbul',
-      'image': 'assets/images/house1.jpg',
-    },
-    {
-      'title': 'Modern Villa',
-      'description': '2 story villa with pool',
-      'price': '₺8000/month',
-      'location': 'Sarıyer, Istanbul',
-      'image': 'assets/images/house2.jpg',
-    },
-    {
-      'title': 'Cozy Townhouse',
-      'description': '2 bedroom townhouse with garage',
-      'price': '₺4500/month',
-      'location': 'Üsküdar, Istanbul',
-      'image': 'assets/images/house3.jpg',
-    },
-    {
-      'title': 'Traditional House',
-      'description': 'Renovated traditional Turkish house',
-      'price': '₺5500/month',
-      'location': 'Fatih, Istanbul',
-      'image': 'assets/images/house4.jpg',
-    },
-    {
-      'title': 'Seaside House',
-      'description': 'House with sea view and terrace',
-      'price': '₺7000/month',
-      'location': 'Bostancı, Istanbul',
-      'image': 'assets/images/house5.jpg',
-    },
-  ];
+  // Firestore-backed; remove demo data
 
   String _selectedCity = 'Tümü';
 
@@ -56,11 +21,12 @@ class _HouseListScreenState extends State<HouseListScreen> {
     _showAddListingDialog();
   }
 
-  List<Map<String, dynamic>> get _filteredListings {
-    return _houseListings.where((l) {
-      final bool cityOk = _selectedCity == 'Tümü' || (l['location'] as String).contains(_selectedCity);
-      return cityOk;
-    }).toList();
+  Stream<QuerySnapshot<Map<String, dynamic>>> _listingsStream() {
+    final query = FirebaseFirestore.instance
+        .collection('listings')
+        .where('category', isEqualTo: 'house');
+    if (_selectedCity == 'Tümü') return query.snapshots();
+    return query.where('city', isEqualTo: _selectedCity).snapshots();
   }
 
   void _showAddListingDialog() {
@@ -74,6 +40,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
     bool petsAllowed = false;
     final List<String> images = [];
     String ownerName = '';
+    final String ownerId = FirebaseAuth.instance.currentUser?.uid ?? '';
     // House/Apartment common features
     String roomCount = '';
     bool hasBalcony = false;
@@ -134,6 +101,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
                     decoration: const InputDecoration(labelText: 'Şehir'),
                   ),
                   const SizedBox(height: 8),
+                  // ownerId artık otomatik atanıyor; kullanıcıdan alınmıyor
                   Align(
                     alignment: Alignment.centerLeft,
                     child: TextButton.icon(
@@ -252,7 +220,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
                 formKey.currentState!.save();
                 if (images.length < 4) {
@@ -262,43 +230,47 @@ class _HouseListScreenState extends State<HouseListScreen> {
                   return;
                 }
 
-                final bool exists = _houseListings.any((l) =>
-                    (l['title'] as String).toLowerCase() == title.toLowerCase() &&
-                    (l['location'] as String).contains(city));
-                if (exists) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Aynı ilan zaten mevcut.')),
-                  );
-                  return;
-                }
+                String finalOwnerName = ownerName;
+                try {
+                  final uid = ownerId;
+                  if (uid.isNotEmpty) {
+                    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+                    if (userDoc.exists) {
+                      finalOwnerName = (userDoc.data()?['name'] as String?)?.trim().isNotEmpty == true
+                          ? (userDoc.data()?['name'] as String)
+                          : finalOwnerName;
+                    }
+                  }
+                } catch (_) {}
 
-                setState(() {
-                  _houseListings.add({
-                    'title': title,
-                    'description': description,
-                    'price': '₺$price',
-                    'location': location.isEmpty ? city : location,
-                    'image': 'assets/images/house1.jpg',
-                    'imageUrl': imageUrl,
-                    'petsAllowed': petsAllowed,
-                    'images': images,
-                    'ownerName': ownerName,
-                    'category': 'house',
-                    'roomCount': roomCount,
-                    'hasBalcony': hasBalcony,
-                    'balconyCount': balconyCount,
-                    'buildingFloors': buildingFloors,
-                    'apartmentFloor': apartmentFloor,
-                    'bathrooms': bathrooms,
-                    'buildingAge': buildingAge,
-                    'squareMeters': squareMeters,
-                    'heating': heating,
-                    'hasElevator': hasElevator,
-                    'inComplex': inComplex,
-                    'hasDues': hasDues,
-                    'duesAmount': duesAmount,
-                    'addressDirections': addressDirections,
-                  });
+                await FirebaseFirestore.instance.collection('listings').add({
+                  'title': title,
+                  'description': description,
+                  'price': '₺$price',
+                  'location': location.isEmpty ? city : location,
+                  'city': city,
+                  'imageUrl': imageUrl,
+                  'petsAllowed': petsAllowed,
+                  'images': images,
+                  'ownerName': finalOwnerName.isNotEmpty ? finalOwnerName : ownerName,
+                  'ownerId': ownerId,
+                  'category': 'house',
+                  'roomCount': roomCount,
+                  'hasBalcony': hasBalcony,
+                  'balconyCount': balconyCount,
+                  'buildingFloors': buildingFloors,
+                  'apartmentFloor': apartmentFloor,
+                  'bathrooms': bathrooms,
+                  'buildingAge': buildingAge,
+                  'squareMeters': squareMeters,
+                  'heating': heating,
+                  'hasElevator': hasElevator,
+                  'inComplex': inComplex,
+                  'hasDues': hasDues,
+                  'duesAmount': duesAmount,
+                  'addressDirections': addressDirections,
+                  'createdAt': FieldValue.serverTimestamp(),
+                  'updatedAt': FieldValue.serverTimestamp(),
                 });
                 Navigator.pop(context);
               },
@@ -364,15 +336,25 @@ class _HouseListScreenState extends State<HouseListScreen> {
               ),
               const SizedBox(height: 12),
               Expanded(
-                child: _filteredListings.isEmpty
-                    ? const Center(child: Text('Sonuç bulunamadı'))
-                    : ListView.builder(
-                        itemCount: _filteredListings.length,
-                        itemBuilder: (context, index) {
-                          final listing = _filteredListings[index];
-                          return _buildListingCard(listing);
-                        },
-                      ),
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _listingsStream(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final docs = snapshot.data?.docs ?? [];
+                    if (docs.isEmpty) {
+                      return const Center(child: Text('Sonuç bulunamadı'));
+                    }
+                    return ListView.builder(
+                      itemCount: docs.length,
+                      itemBuilder: (context, index) {
+                        final data = docs[index].data();
+                        return _buildListingCard(data);
+                      },
+                    );
+                  },
+                ),
               ),
             ],
           ),

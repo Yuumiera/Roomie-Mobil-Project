@@ -18,10 +18,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Handle navigation based on selected tab
     switch (index) {
       case 0:
-        // Navigate to Messages screen
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Messages feature coming soon!')),
-        );
+        Navigator.pushNamed(context, '/messages');
         break;
       case 1:
         // Already on Home screen

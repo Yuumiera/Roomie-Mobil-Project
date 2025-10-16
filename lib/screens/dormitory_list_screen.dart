@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/cities.dart';
 
 class DormitoryListScreen extends StatefulWidget {
@@ -9,39 +11,7 @@ class DormitoryListScreen extends StatefulWidget {
 }
 
 class _DormitoryListScreenState extends State<DormitoryListScreen> {
-  // Sample dormitory listings data
-  final List<Map<String, dynamic>> _dormitoryListings = [
-    {
-      'title': 'University Dormitory - Room 205',
-      'description': 'Single room with shared bathroom',
-      'price': '₺800/month',
-      'location': 'Near University Campus',
-      'image': 'assets/images/dormitory1.jpg',
-      'city': 'İstanbul',
-      'type': 'Oda Değişimi',
-      'category': 'dormitory',
-    },
-    {
-      'title': 'Student Housing Complex',
-      'description': 'Double room with private bathroom',
-      'price': '₺1200/month',
-      'location': 'Downtown Area',
-      'image': 'assets/images/dormitory2.jpg',
-      'city': 'Ankara',
-      'type': 'Yurt Değişimi',
-      'category': 'dormitory',
-    },
-    {
-      'title': 'Modern Dormitory Building',
-      'description': 'Triple room with common area',
-      'price': '₺600/month',
-      'location': 'City Center',
-      'image': 'assets/images/dormitory3.jpg',
-      'city': 'İzmir',
-      'type': 'Oda Değişimi',
-      'category': 'dormitory',
-    },
-  ];
+  // Firestore-backed; remove demo data
 
   String _selectedCity = 'Tümü';
   int _selectedTabIndex = 0; // 0: Oda Değişimi, 1: Yurt Değişimi
@@ -62,6 +32,7 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
     bool petsAllowed = false;
     final List<String> images = [];
     String ownerName = '';
+    String ownerId = FirebaseAuth.instance.currentUser?.uid ?? '';
     // Dormitory-specific
     String roomCapacity = '';
     String bedType = 'Baza';
@@ -206,7 +177,7 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
               child: const Text('Vazgeç'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
                 formKey.currentState!.save();
                 if (images.length < 4) {
@@ -216,37 +187,38 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
                   return;
                 }
 
-                // Duplicate prevention: same title + city + type only once
-                final bool exists = _dormitoryListings.any((l) =>
-                    (l['title'] as String).toLowerCase() == title.toLowerCase() &&
-                    (l['city'] as String?) == city &&
-                    (l['type'] as String?) == type);
-                if (exists) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Aynı ilan zaten mevcut.')),
-                  );
-                  return;
-                }
+                String finalOwnerName = ownerName;
+                try {
+                  final uid = ownerId;
+                  if (uid.isNotEmpty) {
+                    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+                    if (userDoc.exists) {
+                      finalOwnerName = (userDoc.data()?['name'] as String?)?.trim().isNotEmpty == true
+                          ? (userDoc.data()?['name'] as String)
+                          : finalOwnerName;
+                    }
+                  }
+                } catch (_) {}
 
-                setState(() {
-                  _dormitoryListings.add({
-                    'title': title,
-                    'description': description,
-                    'price': '₺$price',
-                    'location': location,
-                    'image': 'assets/images/dormitory1.jpg',
-                    'imageUrl': imageUrl,
-                    'city': city,
-                    'type': type,
-                    'petsAllowed': petsAllowed,
-                    'images': images,
-                    'ownerName': ownerName,
-                    'category': 'dormitory',
-                    'roomCapacity': roomCapacity,
-                    'bedType': bedType,
-                    'bathroomInRoom': bathroomInRoom,
-                    'addressDirections': addressDirections,
-                  });
+                await FirebaseFirestore.instance.collection('listings').add({
+                  'title': title,
+                  'description': description,
+                  'price': '₺$price',
+                  'location': location,
+                  'city': city,
+                  'imageUrl': imageUrl,
+                  'type': type,
+                  'petsAllowed': petsAllowed,
+                  'images': images,
+                  'ownerName': finalOwnerName.isNotEmpty ? finalOwnerName : ownerName,
+                  'ownerId': ownerId,
+                  'category': 'dormitory',
+                  'roomCapacity': roomCapacity,
+                  'bedType': bedType,
+                  'bathroomInRoom': bathroomInRoom,
+                  'addressDirections': addressDirections,
+                  'createdAt': FieldValue.serverTimestamp(),
+                  'updatedAt': FieldValue.serverTimestamp(),
                 });
                 Navigator.pop(context);
               },
@@ -269,13 +241,16 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
     return null;
   }
 
-  List<Map<String, dynamic>> get _filteredListings {
+  Stream<QuerySnapshot<Map<String, dynamic>>> _listingsStream() {
     final String currentType = _selectedTabIndex == 0 ? 'Oda Değişimi' : 'Yurt Değişimi';
-    return _dormitoryListings.where((l) {
-      final bool typeOk = (l['type'] == currentType);
-      final bool cityOk = _selectedCity == 'Tümü' || (l['city'] == _selectedCity);
-      return typeOk && cityOk;
-    }).toList();
+    Query<Map<String, dynamic>> q = FirebaseFirestore.instance
+        .collection('listings')
+        .where('category', isEqualTo: 'dormitory')
+        .where('type', isEqualTo: currentType);
+    if (_selectedCity != 'Tümü') {
+      q = q.where('city', isEqualTo: _selectedCity);
+    }
+    return q.snapshots();
   }
 
   @override
@@ -344,17 +319,25 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
               const SizedBox(height: 12),
 
               Expanded(
-                child: _filteredListings.isEmpty
-                    ? const Center(
-                        child: Text('Sonuç bulunamadı'),
-                      )
-                    : ListView.builder(
-                        itemCount: _filteredListings.length,
-                        itemBuilder: (context, index) {
-                          final listing = _filteredListings[index];
-                          return _buildListingCard(listing);
-                        },
-                      ),
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _listingsStream(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final docs = snapshot.data?.docs ?? [];
+                    if (docs.isEmpty) {
+                      return const Center(child: Text('Sonuç bulunamadı'));
+                    }
+                    return ListView.builder(
+                      itemCount: docs.length,
+                      itemBuilder: (context, index) {
+                        final data = docs[index].data();
+                        return _buildListingCard(data);
+                      },
+                    );
+                  },
+                ),
               ),
             ],
           ),

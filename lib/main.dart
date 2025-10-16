@@ -9,6 +9,8 @@ import 'screens/apartment_list_screen.dart';
 import 'screens/house_list_screen.dart';
 import 'screens/listing_detail_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/messages_screen.dart';
+import 'screens/chat_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +39,15 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/home': (context) => const HomeScreen(),
+        '/messages': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          final String? openChatWith = args != null ? args['openChatWith'] as String? : null;
+          final String? openChatWithName = args != null ? args['openChatWithName'] as String? : null;
+          if (openChatWith != null && openChatWith.isNotEmpty) {
+            return ChatScreen(otherUserId: openChatWith, otherUserName: openChatWithName ?? openChatWith);
+          }
+          return const MessagesScreen();
+        },
         '/dormitory-list': (context) => const DormitoryListScreen(),
         '/apartment-list': (context) => const ApartmentListScreen(),
         '/house-list': (context) => const HouseListScreen(),

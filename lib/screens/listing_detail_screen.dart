@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'chat_screen.dart';
 
 class ListingDetailScreen extends StatelessWidget {
   const ListingDetailScreen({super.key, required this.listing});
@@ -64,22 +67,51 @@ class ListingDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  const CircleAvatar(child: Icon(Icons.person)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(ownerName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      // TODO: hook messaging when ready
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mesaj gönder')));
-                    },
-                    icon: const Icon(Icons.message),
-                    label: const Text('Mesaj gönder'),
-                  )
-                ],
+              Builder(
+                builder: (context) {
+                  final String ownerId = (listing['ownerId'] as String?) ?? '';
+                  final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+                  final bool canMessage = ownerId.isNotEmpty && ownerId != currentUid;
+                  return Row(
+                    children: [
+                      const CircleAvatar(child: Icon(Icons.person)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                          future: ownerId.isEmpty
+                              ? null
+                              : FirebaseFirestore.instance.collection('users').doc(ownerId).get(),
+                          builder: (context, snap) {
+                            String displayName = ownerName;
+                            if (snap.hasData && snap.data!.exists) {
+                              final data = snap.data!.data();
+                              final n = (data?['name'] as String?)?.trim();
+                              if (n != null && n.isNotEmpty) displayName = n;
+                            }
+                            return Text(displayName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600));
+                          },
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: canMessage
+                            ? () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ChatScreen(
+                                      otherUserId: ownerId,
+                                      otherUserName: ownerName,
+                                    ),
+                                  ),
+                                );
+                              }
+                            : null,
+                        icon: const Icon(Icons.message),
+                        label: const Text('Mesaj gönder'),
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 8),
               Row(

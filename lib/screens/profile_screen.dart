@@ -12,6 +12,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   DocumentSnapshot<Map<String, dynamic>>? _userDoc;
   bool _loading = true;
+  String? _uid;
 
   @override
   void initState() {
@@ -27,6 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       return;
     }
+    _uid = user.uid;
     try {
       final snap = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       setState(() {
@@ -171,20 +173,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildListingsCard() {
-    // Since listings are not persisted per user yet, we show placeholder
     return _card(
       title: 'İlanlarım',
-      action: TextButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('İlanlar yakında profil ile bağlanacak.')),
+      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: (_uid == null)
+            ? null
+            : FirebaseFirestore.instance.collection('listings').where('ownerId', isEqualTo: _uid).snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final docs = snapshot.data?.docs ?? [];
+          if (docs.isEmpty) {
+            return const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Henüz ilan yok', style: TextStyle(color: Color(0xFFCD853F))),
+            );
+          }
+          return ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: docs.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final data = docs[index].data();
+              return ListTile(
+                title: Text((data['title'] as String?) ?? '-'),
+                subtitle: Text((data['price'] as String?) ?? ''),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pushNamed(context, '/listing-detail', arguments: { 'listing': data });
+                },
+              );
+            },
           );
         },
-        child: const Text('Tümünü Gör'),
-      ),
-      child: const Align(
-        alignment: Alignment.centerLeft,
-        child: Text('Henüz ilan yok', style: TextStyle(color: Color(0xFFCD853F))),
       ),
     );
   }
