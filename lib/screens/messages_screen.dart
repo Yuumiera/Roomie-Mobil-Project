@@ -3,8 +3,28 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'chat_screen.dart';
 
-class MessagesScreen extends StatelessWidget {
+class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
+
+  @override
+  State<MessagesScreen> createState() => _MessagesScreenState();
+}
+
+class _MessagesScreenState extends State<MessagesScreen> {
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _conversationsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final String currentUserId = currentUser?.uid ?? '';
+    if (currentUserId.isNotEmpty) {
+      _conversationsStream = FirebaseFirestore.instance
+          .collection('conversations')
+          .where('members', arrayContains: currentUserId)
+          .snapshots();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,13 +46,30 @@ class MessagesScreen extends StatelessWidget {
         centerTitle: true,
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('conversations')
-            .where('members', arrayContains: currentUserId)
-            .snapshots(),
+        stream: _conversationsStream,
+        key: ValueKey(currentUserId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Hata: ${snapshot.error}',
+                    style: TextStyle(color: Colors.red.shade700),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: Text('Henüz konuşma yok.'));
           }
           final docs = snapshot.data?.docs ?? [];
           if (docs.isEmpty) {
