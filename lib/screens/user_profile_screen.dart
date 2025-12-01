@@ -1,23 +1,18 @@
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import '../theme/theme_controller.dart';
 
-class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+class UserProfileScreen extends StatefulWidget {
+  final String userId;
+
+  const UserProfileScreen({super.key, required this.userId});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _UserProfileScreenState extends State<UserProfileScreen> {
   DocumentSnapshot<Map<String, dynamic>>? _userDoc;
   bool _loading = true;
-  bool _uploading = false;
-  String? _uid;
 
   @override
   void initState() {
@@ -26,16 +21,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadUser() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+    if (widget.userId.isEmpty) {
       setState(() {
         _loading = false;
       });
       return;
     }
-    _uid = user.uid;
     try {
-      final snap = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final snap = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
       setState(() {
         _userDoc = snap;
         _loading = false;
@@ -46,57 +39,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Profil yüklenemedi: $e')),
+        SnackBar(content: Text('Kullanıcı profili yüklenemedi: $e')),
       );
     }
-  }
-
-  Future<void> _pickAndUploadImage() async {
-    final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
-    if (image == null) return;
-
-    setState(() {
-      _uploading = true;
-    });
-
-    try {
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('user_profiles')
-          .child('${_uid}_profile.jpg');
-      
-      await ref.putFile(File(image.path));
-      final url = await ref.getDownloadURL();
-
-      await FirebaseFirestore.instance.collection('users').doc(_uid).update({
-        'photoUrl': url,
-      });
-
-      await _loadUser();
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profil fotoğrafı güncellendi')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Hata: $e')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _uploading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _logout() async {
-    await FirebaseAuth.instance.signOut();
-    if (!mounted) return;
-    Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
   }
 
   @override
@@ -105,21 +50,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: const Color(0xFFFDF6E3),
       appBar: AppBar(
         title: const Text(
-          'Profil',
+          'Kullanıcı Profili',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: const Color(0xFF8B4513),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.pushNamed(context, '/settings');
-            },
-          ),
-        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -136,20 +73,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildBioCard(),
                     const SizedBox(height: 16),
                     _buildListingsCard(),
-
-                    const SizedBox(height: 16),
-
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: _logout,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8B4513),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text('Çıkış Yap'),
-                    ),
                   ],
                 ),
               ),
@@ -161,19 +84,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final data = _userDoc?.data() ?? {};
     final String name = (data['name'] as String?) ?? '-';
     final String email = (data['email'] as String?) ?? '-';
-    final String? photoUrl = data['photoUrl'] as String?;
-
     return Row(
       children: [
-        GestureDetector(
-          onTap: _pickAndUploadImage,
-          child: CircleAvatar(
-            radius: 36,
-            backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-            child: _uploading
-                ? const CircularProgressIndicator()
-                : (photoUrl == null ? const Icon(Icons.person, size: 36) : null),
-          ),
+        const CircleAvatar(
+          radius: 36,
+          child: Icon(Icons.person, size: 36),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -192,12 +107,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildInfoCard() {
     final data = _userDoc?.data() ?? {};
-    final String phone = (data['phone'] as String?) ?? '-';
     final String city = (data['city'] as String?) ?? '-';
     final String department = (data['department'] as String?) ?? '-';
     final String classYear = (data['classYear'] as String?) ?? '-';
     final String gender = (data['gender'] as String?) ?? '-';
     final String hasPet = (data['hasPet'] == true) ? 'Evet' : (data['hasPet'] == false) ? 'Hayır' : '-';
+    
+    // Phone number might be private, so maybe we shouldn't show it here unless intended.
+    // For now, I'll include it to match the original profile screen, but it's something to consider.
+    final String phone = (data['phone'] as String?) ?? '-';
+
     return _card(
       title: 'Bilgiler',
       child: Column(
@@ -230,11 +149,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildListingsCard() {
     return _card(
-      title: 'İlanlarım',
+      title: 'İlanları',
       child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: (_uid == null)
+        stream: (widget.userId.isEmpty)
             ? null
-            : FirebaseFirestore.instance.collection('listings').where('ownerId', isEqualTo: _uid).snapshots(),
+            : FirebaseFirestore.instance.collection('listings').where('ownerId', isEqualTo: widget.userId).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -267,8 +186,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-
-
 
   Widget _card({required String title, required Widget child, Widget? action}) {
     return Container(
@@ -312,5 +229,3 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
-
-

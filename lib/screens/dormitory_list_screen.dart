@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/cities.dart';
+import '../widgets/alert_subscription_dialog.dart';
+import '../widgets/premium_alert_banner.dart';
 
 class DormitoryListScreen extends StatefulWidget {
   const DormitoryListScreen({super.key});
@@ -18,6 +22,32 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
 
   void _addNewListing() {
     _showAddListingDialog();
+  }
+
+  Future<void> _openSubscriptionDialog() async {
+    final String currentType = _selectedTabIndex == 0 ? 'Oda Değişimi' : 'Yurt Değişimi';
+    final Map<String, dynamic> criteria = {
+      'city': _selectedCity == 'Tümü' ? null : _selectedCity,
+      'category': 'dormitory',
+      'type': currentType,
+    };
+    final summary = <String, String>{
+      'Şehir': _selectedCity,
+      'Kategori': 'Yurt / Oda',
+      'Tür': currentType,
+    };
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertSubscriptionDialog(
+        criteria: criteria,
+        summary: summary,
+      ),
+    );
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aboneliğiniz başlatıldı.')),
+      );
+    }
   }
 
   void _showAddListingDialog() {
@@ -42,14 +72,16 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Yeni İlan Ekle'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Yeni İlan Ekle'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                   TextFormField(
                     decoration: const InputDecoration(labelText: 'Başlık'),
                     onSaved: (v) => title = v?.trim() ?? '',
@@ -83,7 +115,7 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
                       DropdownMenuItem(value: 'Ankara', child: Text('Ankara')),
                       DropdownMenuItem(value: 'İzmir', child: Text('İzmir')),
                     ],
-                    onChanged: (v) => city = v ?? city,
+                    onChanged: (v) => setDialogState(() => city = v ?? city),
                     decoration: const InputDecoration(labelText: 'Şehir'),
                   ),
                   const SizedBox(height: 8),
@@ -93,7 +125,7 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
                       DropdownMenuItem(value: 'Oda Değişimi', child: Text('Oda Değişimi')),
                       DropdownMenuItem(value: 'Yurt Değişimi', child: Text('Yurt Değişimi')),
                     ],
-                    onChanged: (v) => type = v ?? type,
+                    onChanged: (v) => setDialogState(() => type = v ?? type),
                     decoration: const InputDecoration(labelText: 'Kategori'),
                   ),
                   const SizedBox(height: 8),
@@ -102,42 +134,53 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
                     child: TextButton.icon(
                       onPressed: () async {
                         final picked = await _pickImages();
-                        if (picked != null) {
+                        if (picked != null && picked.isNotEmpty) {
                           images
                             ..clear()
                             ..addAll(picked);
+                          setDialogState(() {});
                           formKey.currentState?.validate();
+                          if (picked.length < 4) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('En az 4 görsel seçmelisiniz. Şu anda ${picked.length} görsel seçtiniz.'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Görsel seçilemedi. Lütfen tekrar deneyin.'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
                         }
                       },
                       icon: const Icon(Icons.photo_library),
-                      label: const Text('Galeri’den görsel seç (min 4)'),
+                      label: const Text('Galeri\'den görsel seç (min 4)'),
                     ),
                   ),
-                  Builder(
-                    builder: (context) {
-                      return Visibility(
-                        visible: true,
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: images
-                              .map((p) => SizedBox(
-                                    width: 56,
-                                    height: 56,
-                                    child: Image.asset(
-                                      p,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ))
-                              .toList(),
-                        ),
-                      );
-                    },
-                  ),
+                  if (images.isNotEmpty)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: images
+                          .map((p) => ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Image.file(
+                                  File(p),
+                                  width: 56,
+                                  height: 56,
+                                  fit: BoxFit.cover,
+                                ),
+                              ))
+                          .toList(),
+                    ),
                   const SizedBox(height: 8),
                   SwitchListTile(
                     value: petsAllowed,
-                    onChanged: (v) { petsAllowed = v; },
+                    onChanged: (v) => setDialogState(() => petsAllowed = v),
                     title: const Text('Evcil hayvan var mı?'),
                     contentPadding: EdgeInsets.zero,
                   ),
@@ -154,12 +197,12 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
                       DropdownMenuItem(value: 'Baza', child: Text('Baza')),
                       DropdownMenuItem(value: 'Ranza', child: Text('Ranza')),
                     ],
-                    onChanged: (v) => bedType = v ?? bedType,
+                    onChanged: (v) => setDialogState(() => bedType = v ?? bedType),
                     decoration: const InputDecoration(labelText: 'Yatak tipi'),
                   ),
                   SwitchListTile(
                     value: bathroomInRoom,
-                    onChanged: (v) { bathroomInRoom = v; },
+                    onChanged: (v) => setDialogState(() => bathroomInRoom = v),
                     title: const Text('Tuvalet/Banyo oda içinde mi?'),
                     contentPadding: EdgeInsets.zero,
                   ),
@@ -225,6 +268,8 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
               child: const Text('Ekle'),
             ),
           ],
+            );
+          },
         );
       },
     );
@@ -232,13 +277,13 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
 
   Future<List<String>?> _pickImages() async {
     try {
-      // Deferred import to avoid adding import at top if not used
-      // ignore: unnecessary_import
-      // Using image_picker
-      // Keep it simple: dynamic import here avoided; add at top when needed.
-      // We will import and use ImagePicker here directly.
-    } catch (_) {}
-    return null;
+      final ImagePicker picker = ImagePicker();
+      final List<XFile> files = await picker.pickMultiImage(imageQuality: 90);
+      if (files.isEmpty) return null;
+      return files.map((f) => f.path).toList();
+    } catch (e) {
+      return null;
+    }
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _listingsStream() {
@@ -275,6 +320,8 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              PremiumAlertBanner(onSubscribe: _openSubscriptionDialog),
+              const SizedBox(height: 16),
               // Tabs: Oda Değişimi / Yurt Değişimi
               Container(
                 decoration: BoxDecoration(

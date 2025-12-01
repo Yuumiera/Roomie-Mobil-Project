@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/cities.dart';
+import '../widgets/alert_subscription_dialog.dart';
+import '../widgets/premium_alert_banner.dart';
 
 class HouseListScreen extends StatefulWidget {
   const HouseListScreen({super.key});
@@ -16,9 +18,36 @@ class _HouseListScreenState extends State<HouseListScreen> {
   // Firestore-backed; remove demo data
 
   String _selectedCity = 'Tümü';
+  bool _isSubscribed = false;
 
   void _addNewListing() {
     _showAddListingDialog();
+  }
+
+  Future<void> _openSubscriptionDialog() async {
+    final Map<String, dynamic> criteria = {
+      'city': _selectedCity == 'Tümü' ? null : _selectedCity,
+      'category': 'house',
+    };
+    final summary = <String, String>{
+      'Şehir': _selectedCity,
+      'Kategori': 'Müstakil Ev',
+    };
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertSubscriptionDialog(
+        criteria: criteria,
+        summary: summary,
+      ),
+    );
+    if (result == true && mounted) {
+      setState(() {
+        _isSubscribed = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aboneliğiniz başlatıldı. Premium aktif!')),
+      );
+    }
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _listingsStream() {
@@ -60,7 +89,9 @@ class _HouseListScreenState extends State<HouseListScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
           title: const Text('Yeni İlan Ekle'),
           content: SingleChildScrollView(
             child: Form(
@@ -97,7 +128,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
                   DropdownButtonFormField<String>(
                     value: city,
                     items: trCities81.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (v) => city = v ?? city,
+                    onChanged: (v) => setDialogState(() => city = v ?? city),
                     decoration: const InputDecoration(labelText: 'Şehir'),
                   ),
                   const SizedBox(height: 8),
@@ -107,15 +138,31 @@ class _HouseListScreenState extends State<HouseListScreen> {
                     child: TextButton.icon(
                       onPressed: () async {
                         final picked = await _pickImages();
-                        if (picked != null) {
+                        if (picked != null && picked.isNotEmpty) {
                           images
                             ..clear()
                             ..addAll(picked);
+                          setDialogState(() {});
                           formKey.currentState?.validate();
+                          if (picked.length < 4) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('En az 4 görsel seçmelisiniz. Şu anda ${picked.length} görsel seçtiniz.'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Görsel seçilemedi. Lütfen tekrar deneyin.'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
                         }
                       },
                       icon: const Icon(Icons.photo_library),
-                      label: const Text('Galeri’den görsel seç (min 4)'),
+                      label: const Text('Galeri\'den görsel seç (min 4)'),
                     ),
                   ),
                   if (images.isNotEmpty)
@@ -137,7 +184,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
                   const SizedBox(height: 8),
                   SwitchListTile(
                     value: petsAllowed,
-                    onChanged: (v) { petsAllowed = v; },
+                    onChanged: (v) => setDialogState(() => petsAllowed = v),
                     title: const Text('Evcil hayvan var mı?'),
                     contentPadding: EdgeInsets.zero,
                   ),
@@ -149,7 +196,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
                   ),
                   SwitchListTile(
                     value: hasBalcony,
-                    onChanged: (v) { hasBalcony = v; },
+                    onChanged: (v) => setDialogState(() => hasBalcony = v),
                     title: const Text('Balkon var mı?'),
                     contentPadding: EdgeInsets.zero,
                   ),
@@ -188,19 +235,19 @@ class _HouseListScreenState extends State<HouseListScreen> {
                   ),
                   SwitchListTile(
                     value: hasElevator,
-                    onChanged: (v) { hasElevator = v; },
+                    onChanged: (v) => setDialogState(() => hasElevator = v),
                     title: const Text('Asansör var mı?'),
                     contentPadding: EdgeInsets.zero,
                   ),
                   SwitchListTile(
                     value: inComplex,
-                    onChanged: (v) { inComplex = v; },
+                    onChanged: (v) => setDialogState(() => inComplex = v),
                     title: const Text('Site içerisinde mi?'),
                     contentPadding: EdgeInsets.zero,
                   ),
                   SwitchListTile(
                     value: hasDues,
-                    onChanged: (v) { hasDues = v; },
+                    onChanged: (v) => setDialogState(() => hasDues = v),
                     title: const Text('Aidat var mı?'),
                     contentPadding: EdgeInsets.zero,
                   ),
@@ -277,6 +324,8 @@ class _HouseListScreenState extends State<HouseListScreen> {
               child: const Text('Ekle'),
             ),
           ],
+            );
+          },
         );
       },
     );
@@ -293,7 +342,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: const Color(0xFFD4AF37),
+        backgroundColor: Colors.transparent,
         foregroundColor: const Color(0xFF8B4513),
         elevation: 0,
         centerTitle: true,
@@ -304,6 +353,19 @@ class _HouseListScreenState extends State<HouseListScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              PremiumAlertBanner(onSubscribe: _openSubscriptionDialog),
+              if (_isSubscribed)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: const [
+                      Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 16),
+                      SizedBox(width: 4),
+                      Text('Premium Abonelik Aktif', style: TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 16),
               Text(
                 'Available Houses',
                 style: TextStyle(
@@ -315,8 +377,6 @@ class _HouseListScreenState extends State<HouseListScreen> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  const Icon(Icons.location_city, color: Color(0xFFD4AF37)),
-                  const SizedBox(width: 8),
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       value: _selectedCity,
@@ -326,9 +386,10 @@ class _HouseListScreenState extends State<HouseListScreen> {
                       ],
                       onChanged: (v) { if (v != null) setState(() => _selectedCity = v); },
                       decoration: const InputDecoration(
-                        labelText: 'Şehre göre filtrele',
+                        labelText: 'Şehir',
                         border: OutlineInputBorder(),
                         isDense: true,
+                        prefixIcon: Icon(Icons.location_city, color: Color(0xFFD4AF37)),
                       ),
                     ),
                   ),
@@ -405,12 +466,24 @@ class _HouseListScreenState extends State<HouseListScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        listing['title'],
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF8B4513),
+                      GestureDetector(
+                        onTap: () {
+                          final ownerId = listing['ownerId'] as String?;
+                          if (ownerId != null && ownerId.isNotEmpty) {
+                            Navigator.pushNamed(
+                              context,
+                              '/user-profile',
+                              arguments: {'userId': ownerId},
+                            );
+                          }
+                        },
+                        child: Text(
+                          listing['title'],
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF8B4513),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -523,7 +596,8 @@ class _HouseListScreenState extends State<HouseListScreen> {
       final List<XFile> files = await picker.pickMultiImage(imageQuality: 90);
       if (files.isEmpty) return null;
       return files.map((f) => f.path).toList();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Görsel seçme hatası: $e');
       return null;
     }
   }

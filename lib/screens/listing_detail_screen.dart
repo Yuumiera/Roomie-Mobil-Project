@@ -4,13 +4,34 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'chat_screen.dart';
 
-class ListingDetailScreen extends StatelessWidget {
+class ListingDetailScreen extends StatefulWidget {
   const ListingDetailScreen({super.key, required this.listing});
 
   final Map<String, dynamic> listing;
 
   @override
+  State<ListingDetailScreen> createState() => _ListingDetailScreenState();
+}
+
+class _ListingDetailScreenState extends State<ListingDetailScreen> {
+  late final PageController _pageController;
+  int _currentImageIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final listing = widget.listing;
     final String title = listing['title'] ?? '';
     final String description = listing['description'] ?? '';
     final String price = listing['price'] ?? '';
@@ -40,7 +61,7 @@ class ListingDetailScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (images != null && images.isNotEmpty)
-                _imagesGallery(images)
+                _imagesGallery(images.cast<String>())
               else
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -71,6 +92,7 @@ class ListingDetailScreen extends StatelessWidget {
                 builder: (context) {
                   final String ownerId = (listing['ownerId'] as String?) ?? '';
                   final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+                  // Enable message button if ownerId exists and is not the current user
                   final bool canMessage = ownerId.isNotEmpty && ownerId != currentUid;
                   return Row(
                     children: [
@@ -93,21 +115,42 @@ class ListingDetailScreen extends StatelessWidget {
                         ),
                       ),
                       TextButton.icon(
-                        onPressed: canMessage
-                            ? () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ChatScreen(
-                                      otherUserId: ownerId,
-                                      otherUserName: ownerName,
-                                    ),
-                                  ),
-                                );
-                              }
-                            : null,
-                        icon: const Icon(Icons.message),
-                        label: const Text('Mesaj gönder'),
+                        onPressed: () {
+                          if (canMessage) {
+                            final String finalOwnerName = ownerName;
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ChatScreen(
+                                  otherUserId: ownerId,
+                                  otherUserName: finalOwnerName,
+                                ),
+                              ),
+                            );
+                          } else if (ownerId.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Bu ilan için sahip bilgisi bulunamadı.'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          } else if (ownerId == currentUid) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Kendi ilanınıza mesaj gönderemezsiniz.'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
+                        icon: Icon(Icons.message, color: canMessage ? null : Colors.grey),
+                        label: Text(
+                          'Mesaj gönder',
+                          style: TextStyle(color: canMessage ? null : Colors.grey),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: canMessage ? null : Colors.grey,
+                        ),
                       ),
                     ],
                   );
@@ -245,8 +288,45 @@ class ListingDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _imagesGallery(List<dynamic> images) {
-    final List<String> paths = images.cast<String>();
+  bool _isNetworkUrl(String path) => path.startsWith('http://') || path.startsWith('https://');
+
+  Widget _buildImageWidget(String path, {double? width, double? height}) {
+    if (_isNetworkUrl(path)) {
+      return Image.network(
+        path,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stack) => _placeholder(),
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            width: width,
+            height: height,
+            color: const Color(0xFF4CAF50).withOpacity(0.08),
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    : null,
+                color: const Color(0xFF4CAF50),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    return Image.file(
+      File(path),
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stack) => _placeholder(),
+    );
+  }
+
+  Widget _imagesGallery(List<String> paths) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -255,38 +335,51 @@ class ListingDetailScreen extends StatelessWidget {
           child: AspectRatio(
             aspectRatio: 16 / 9,
             child: PageView.builder(
+              controller: _pageController,
               itemCount: paths.length,
+              onPageChanged: (index) => setState(() => _currentImageIndex = index),
               itemBuilder: (context, index) {
                 final path = paths[index];
-                return Image.file(
-                  File(path),
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stack) => _placeholder(),
-                );
+                return _buildImageWidget(path);
               },
             ),
           ),
         ),
         const SizedBox(height: 8),
         SizedBox(
-          height: 72,
-          child: ListView.separated(
+          height: 80,
+          child: ListView.builder(
             scrollDirection: Axis.horizontal,
+            itemCount: paths.length,
             itemBuilder: (context, i) {
+              final bool isSelected = i == _currentImageIndex;
               final path = paths[i];
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.file(
-                  File(path),
-                  width: 100,
-                  height: 72,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stack) => _placeholder(),
+              return GestureDetector(
+                onTap: () {
+                  _pageController.animateToPage(
+                    i,
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeInOut,
+                  );
+                  setState(() => _currentImageIndex = i);
+                },
+                child: Container(
+                  margin: EdgeInsets.only(right: i == paths.length - 1 ? 0 : 8),
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isSelected ? const Color(0xFF4CAF50) : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: _buildImageWidget(path, width: 100, height: 72),
+                  ),
                 ),
               );
             },
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemCount: paths.length,
           ),
         ),
       ],

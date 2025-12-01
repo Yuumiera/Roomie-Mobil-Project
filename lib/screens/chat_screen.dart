@@ -73,17 +73,34 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          future: FirebaseFirestore.instance.collection('users').doc(widget.otherUserId).get(),
-          builder: (context, snap) {
-            String name = widget.otherUserName;
-            if (snap.hasData && snap.data!.exists) {
-              final data = snap.data!.data();
-              final n = (data?['name'] as String?)?.trim();
-              if (n != null && n.isNotEmpty) name = n;
-            }
-            return Text(name.isEmpty ? 'Sohbet' : name);
+        title: GestureDetector(
+          onTap: () {
+            Navigator.pushNamed(
+              context,
+              '/user-profile',
+              arguments: {'userId': widget.otherUserId},
+            );
           },
+          child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            future: FirebaseFirestore.instance.collection('users').doc(widget.otherUserId).get(),
+            builder: (context, snap) {
+              String name = widget.otherUserName;
+              if (snap.hasData && snap.data!.exists) {
+                final data = snap.data!.data();
+                final n = (data?['name'] as String?)?.trim();
+                if (n != null && n.isNotEmpty) name = n;
+              }
+              return Column(
+                children: [
+                  Text(name.isEmpty ? 'Sohbet' : name),
+                  const Text(
+                    'Profili Gör',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
         backgroundColor: const Color(0xFF4CAF50),
         foregroundColor: const Color(0xFF8B4513),
