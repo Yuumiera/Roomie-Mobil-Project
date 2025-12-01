@@ -19,9 +19,12 @@ class _HouseListScreenState extends State<HouseListScreen> {
 
   String _selectedCity = 'Tümü';
   bool _isSubscribed = false;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _listingsStream;
 
-  void _addNewListing() {
-    _showAddListingDialog();
+  @override
+  void initState() {
+    super.initState();
+    _updateStream();
   }
 
   Future<void> _openSubscriptionDialog() async {
@@ -50,12 +53,21 @@ class _HouseListScreenState extends State<HouseListScreen> {
     }
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _listingsStream() {
+  void _updateStream() {
     final query = FirebaseFirestore.instance
         .collection('listings')
         .where('category', isEqualTo: 'house');
-    if (_selectedCity == 'Tümü') return query.snapshots();
-    return query.where('city', isEqualTo: _selectedCity).snapshots();
+    setState(() {
+      if (_selectedCity == 'Tümü') {
+        _listingsStream = query.snapshots();
+      } else {
+        _listingsStream = query.where('city', isEqualTo: _selectedCity).snapshots();
+      }
+    });
+  }
+
+  void _addNewListing() {
+    _showAddListingDialog();
   }
 
   void _showAddListingDialog() {
@@ -384,7 +396,12 @@ class _HouseListScreenState extends State<HouseListScreen> {
                         const DropdownMenuItem(value: 'Tümü', child: Text('Tüm Şehirler')),
                         ...trCities81.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                       ],
-                      onChanged: (v) { if (v != null) setState(() => _selectedCity = v); },
+                      onChanged: (v) {
+                        if (v != null && v != _selectedCity) {
+                          setState(() => _selectedCity = v);
+                          _updateStream();
+                        }
+                      },
                       decoration: const InputDecoration(
                         labelText: 'Şehir',
                         border: OutlineInputBorder(),
@@ -398,10 +415,35 @@ class _HouseListScreenState extends State<HouseListScreen> {
               const SizedBox(height: 12),
               Expanded(
                 child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _listingsStream(),
+                  stream: _listingsStream,
+                  key: ValueKey(_selectedCity),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Hata: ${snapshot.error}',
+                              style: TextStyle(color: Colors.red.shade700),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            ElevatedButton(
+                              onPressed: () => setState(() {}),
+                              child: const Text('Yeniden Dene'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    if (!snapshot.hasData) {
+                      return const Center(child: Text('Sonuç bulunamadı'));
                     }
                     final docs = snapshot.data?.docs ?? [];
                     if (docs.isEmpty) {

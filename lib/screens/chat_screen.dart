@@ -16,6 +16,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   late final String _currentUserId;
   late final String _conversationId;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _messagesStream;
 
   @override
   void initState() {
@@ -23,6 +24,13 @@ class _ChatScreenState extends State<ChatScreen> {
     final user = FirebaseAuth.instance.currentUser;
     _currentUserId = user?.uid ?? '';
     _conversationId = _buildConversationId(_currentUserId, widget.otherUserId);
+    _messagesStream = FirebaseFirestore.instance
+        .collection('conversations')
+        .doc(_conversationId)
+        .collection('messages')
+        .orderBy('createdAt', descending: true)
+        .limit(200)
+        .snapshots();
     _ensureConversationExists();
   }
 
@@ -112,16 +120,35 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('conversations')
-                  .doc(_conversationId)
-                  .collection('messages')
-                  .orderBy('createdAt', descending: true)
-                  .limit(200)
-                  .snapshots(),
+              stream: _messagesStream,
+              key: ValueKey(_conversationId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Hata: ${snapshot.error}',
+                          style: TextStyle(color: Colors.red.shade700),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: () => setState(() {}),
+                          child: const Text('Yeniden Dene'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                if (!snapshot.hasData) {
+                  return const Center(child: Text('Henüz mesaj yok.'));
                 }
                 final docs = snapshot.data?.docs ?? [];
                 if (docs.isEmpty) {

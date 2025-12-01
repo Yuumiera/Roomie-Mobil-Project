@@ -18,11 +18,15 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
   // Firestore-backed; remove hardcoded demo data
 
   String _selectedCity = 'Tümü';
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _listingsStream;
 
-  void _addNewListing() {
-    _showAddListingDialog();
+  @override
+  void initState() {
+    super.initState();
+    _updateStream();
   }
 
+<<<<<<< HEAD
   Future<void> _openSubscriptionDialog() async {
     final Map<String, dynamic> criteria = {
       'city': _selectedCity == 'Tümü' ? null : _selectedCity,
@@ -47,11 +51,23 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _listingsStream() {
+=======
+  void _updateStream() {
+>>>>>>> 3620e6db971ecbec5072851057d147cc100f1724
     final query = FirebaseFirestore.instance
         .collection('listings')
         .where('category', isEqualTo: 'apartment');
-    if (_selectedCity == 'Tümü') return query.snapshots();
-    return query.where('city', isEqualTo: _selectedCity).snapshots();
+    setState(() {
+      if (_selectedCity == 'Tümü') {
+        _listingsStream = query.snapshots();
+      } else {
+        _listingsStream = query.where('city', isEqualTo: _selectedCity).snapshots();
+      }
+    });
+  }
+
+  void _addNewListing() {
+    _showAddListingDialog();
   }
 
   void _showAddListingDialog() {
@@ -371,7 +387,12 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                         const DropdownMenuItem(value: 'Tümü', child: Text('Tüm Şehirler')),
                         ...trCities81.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                       ],
-                      onChanged: (v) { if (v != null) setState(() => _selectedCity = v); },
+                      onChanged: (v) {
+                        if (v != null && v != _selectedCity) {
+                          setState(() => _selectedCity = v);
+                          _updateStream();
+                        }
+                      },
                       decoration: const InputDecoration(
                         labelText: 'Şehre göre filtrele',
                         border: OutlineInputBorder(),
@@ -384,10 +405,35 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
               const SizedBox(height: 12),
               Expanded(
                 child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _listingsStream(),
+                  stream: _listingsStream,
+                  key: ValueKey(_selectedCity),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Hata: ${snapshot.error}',
+                              style: TextStyle(color: Colors.red.shade700),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            ElevatedButton(
+                              onPressed: () => setState(() {}),
+                              child: const Text('Yeniden Dene'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    if (!snapshot.hasData) {
+                      return const Center(child: Text('Sonuç bulunamadı'));
                     }
                     final docs = snapshot.data?.docs ?? [];
                     if (docs.isEmpty) {
