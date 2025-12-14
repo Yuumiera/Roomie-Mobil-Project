@@ -6,10 +6,8 @@ import 'package:http/http.dart' as http;
 class ApiService {
   // Use 10.0.2.2 for Android Emulator, localhost for iOS/Web
   static String get baseUrl {
-    if (kIsWeb) return 'http://localhost:3000';
-    // Bilgisayarın yerel IP adresi (Gerçek cihaz için gerekli)
-    const String localIp = '10.116.224.76'; 
-    return 'http://$localIp:3000';
+    // Production URL (Render.com)
+    return 'https://roomie-mobil-project.onrender.com';
   }
 
   // --- LISTINGS ---
