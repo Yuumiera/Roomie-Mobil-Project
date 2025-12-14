@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/api_service.dart';
 import '../utils/cities.dart';
 import '../widgets/alert_subscription_dialog.dart';
 import '../widgets/premium_alert_banner.dart';
@@ -15,16 +15,26 @@ class HouseListScreen extends StatefulWidget {
 }
 
 class _HouseListScreenState extends State<HouseListScreen> {
-  // Firestore-backed; remove demo data
-
   String _selectedCity = 'Tümü';
-  bool _isSubscribed = false;
-  Stream<QuerySnapshot<Map<String, dynamic>>>? _listingsStream;
+  late Future<List<Map<String, dynamic>>> _listingsFuture;
 
   @override
   void initState() {
     super.initState();
-    _updateStream();
+    _loadListings();
+  }
+
+  void _loadListings() {
+    setState(() {
+      _listingsFuture = ApiService.fetchListings(
+        category: 'house',
+        city: _selectedCity,
+      );
+    });
+  }
+
+  void _addNewListing() {
+    _showAddListingDialog();
   }
 
   Future<void> _openSubscriptionDialog() async {
@@ -44,30 +54,10 @@ class _HouseListScreenState extends State<HouseListScreen> {
       ),
     );
     if (result == true && mounted) {
-      setState(() {
-        _isSubscribed = true;
-      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aboneliğiniz başlatıldı. Premium aktif!')),
+        const SnackBar(content: Text('Aboneliğiniz başlatıldı.')),
       );
     }
-  }
-
-  void _updateStream() {
-    final query = FirebaseFirestore.instance
-        .collection('listings')
-        .where('category', isEqualTo: 'house');
-    setState(() {
-      if (_selectedCity == 'Tümü') {
-        _listingsStream = query.snapshots();
-      } else {
-        _listingsStream = query.where('city', isEqualTo: _selectedCity).snapshots();
-      }
-    });
-  }
-
-  void _addNewListing() {
-    _showAddListingDialog();
   }
 
   void _showAddListingDialog() {
@@ -81,21 +71,13 @@ class _HouseListScreenState extends State<HouseListScreen> {
     bool petsAllowed = false;
     final List<String> images = [];
     String ownerName = '';
-    final String ownerId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    // House/Apartment common features
+    String ownerId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    // House specific fields
     String roomCount = '';
-    bool hasBalcony = false;
-    String balconyCount = '';
-    String buildingFloors = '';
-    String apartmentFloor = '';
-    String bathrooms = '';
-    String buildingAge = '';
+    bool hasGarden = false;
+    bool hasGarage = false;
+    String heating = 'Kombi';
     String squareMeters = '';
-    String heating = '';
-    bool hasElevator = false;
-    bool inComplex = false;
-    bool hasDues = false;
-    String duesAmount = '';
     String addressDirections = '';
 
     showDialog(
@@ -104,243 +86,163 @@ class _HouseListScreenState extends State<HouseListScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-          title: const Text('Yeni İlan Ekle'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Başlık'),
-                    onSaved: (v) => title = v?.trim() ?? '',
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Gerekli' : null,
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'İlan Sahibi Adı'),
-                    onSaved: (v) => ownerName = v?.trim() ?? '',
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Gerekli' : null,
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Açıklama'),
-                    onSaved: (v) => description = v?.trim() ?? '',
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Gerekli' : null,
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Fiyat (₺)'),
-                    onSaved: (v) => price = v?.trim() ?? '',
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Gerekli' : null,
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Konum (örn. Üsküdar, İstanbul)'),
-                    onSaved: (v) => location = v?.trim() ?? '',
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Gerekli' : null,
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    value: city,
-                    items: trCities81.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (v) => setDialogState(() => city = v ?? city),
-                    decoration: const InputDecoration(labelText: 'Şehir'),
-                  ),
-                  const SizedBox(height: 8),
-                  // ownerId artık otomatik atanıyor; kullanıcıdan alınmıyor
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: () async {
-                        final picked = await _pickImages();
-                        if (picked != null && picked.isNotEmpty) {
-                          images
-                            ..clear()
-                            ..addAll(picked);
-                          setDialogState(() {});
-                          formKey.currentState?.validate();
-                          if (picked.length < 4) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('En az 4 görsel seçmelisiniz. Şu anda ${picked.length} görsel seçtiniz.'),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Görsel seçilemedi. Lütfen tekrar deneyin.'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.photo_library),
-                      label: const Text('Galeri\'den görsel seç (min 4)'),
+              title: const Text('Yeni Müstakil Ev İlanı'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          decoration: const InputDecoration(labelText: 'Başlık'),
+                          onSaved: (v) => title = v?.trim() ?? '',
+                          validator: (v) => v!.isEmpty ? 'Gerekli' : null,
+                        ),
+                        TextFormField(
+                          decoration: const InputDecoration(labelText: 'Açıklama'),
+                          onSaved: (v) => description = v?.trim() ?? '',
+                          maxLines: 3,
+                        ),
+                        TextFormField(
+                          decoration: const InputDecoration(labelText: 'Fiyat (TL)'),
+                          keyboardType: TextInputType.number,
+                          onSaved: (v) => price = v?.trim() ?? '',
+                          validator: (v) => v!.isEmpty ? 'Gerekli' : null,
+                        ),
+                         DropdownButtonFormField<String>(
+                          value: city,
+                          items: trCities81.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                          onChanged: (v) => setDialogState(() => city = v!),
+                          decoration: const InputDecoration(labelText: 'Şehir'),
+                        ),
+                        TextFormField(
+                          decoration: const InputDecoration(labelText: 'İlçe / Mahalle'),
+                          onSaved: (v) => location = v?.trim() ?? '',
+                        ),
+                        TextFormField(
+                          decoration: const InputDecoration(labelText: 'Oda Sayısı (örn: 3+1)'),
+                          onSaved: (v) => roomCount = v?.trim() ?? '',
+                        ),
+                        TextFormField(
+                          decoration: const InputDecoration(labelText: 'Metrekare (m2)'),
+                          keyboardType: TextInputType.number,
+                          onSaved: (v) => squareMeters = v?.trim() ?? '',
+                        ),
+                        TextFormField(
+                          decoration: const InputDecoration(labelText: 'Isıtma'),
+                          initialValue: heating,
+                          onSaved: (v) => heating = v?.trim() ?? '',
+                        ),
+                        TextFormField(
+                          decoration: const InputDecoration(labelText: 'Adres Tarifi'),
+                          onSaved: (v) => addressDirections = v?.trim() ?? '',
+                        ),
+                        SwitchListTile(
+                          value: petsAllowed,
+                          onChanged: (v) => setDialogState(() => petsAllowed = v),
+                          title: const Text('Evcil Hayvan İzinli mi?'),
+                        ),
+                        SwitchListTile(
+                          value: hasGarden,
+                          onChanged: (v) => setDialogState(() => hasGarden = v),
+                          title: const Text('Bahçeli mi?'),
+                        ),
+                        SwitchListTile(
+                          value: hasGarage,
+                          onChanged: (v) => setDialogState(() => hasGarage = v),
+                          title: const Text('Garajı var mı?'),
+                        ),
+                         const SizedBox(height: 10),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                             final picked = await _pickImages();
+                             if (picked != null) {
+                               setDialogState(() {
+                                 images.addAll(picked);
+                               });
+                             }
+                          },
+                          icon: const Icon(Icons.photo_library),
+                          label: Text('Görsel Seç (${images.length})'),
+                        ),
+                      ],
                     ),
                   ),
-                  if (images.isNotEmpty)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: images
-                          .map((p) => ClipRRect(
-                                borderRadius: BorderRadius.circular(6),
-                                child: Image.file(
-                                  File(p),
-                                  width: 56,
-                                  height: 56,
-                                  fit: BoxFit.cover,
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                  const SizedBox(height: 8),
-                  SwitchListTile(
-                    value: petsAllowed,
-                    onChanged: (v) => setDialogState(() => petsAllowed = v),
-                    title: const Text('Evcil hayvan var mı?'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  const SizedBox(height: 8),
-                  // House features (same as apartment)
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Oda sayısı (örn. 3+1)'),
-                    onSaved: (v) => roomCount = v?.trim() ?? '',
-                  ),
-                  SwitchListTile(
-                    value: hasBalcony,
-                    onChanged: (v) => setDialogState(() => hasBalcony = v),
-                    title: const Text('Balkon var mı?'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Balkon sayısı'),
-                    keyboardType: TextInputType.number,
-                    onSaved: (v) => balconyCount = v?.trim() ?? '',
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Bina kaç katlı?'),
-                    keyboardType: TextInputType.number,
-                    onSaved: (v) => buildingFloors = v?.trim() ?? '',
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Daire kaçıncı katta?'),
-                    keyboardType: TextInputType.number,
-                    onSaved: (v) => apartmentFloor = v?.trim() ?? '',
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Kaç tuvalet/banyo?'),
-                    onSaved: (v) => bathrooms = v?.trim() ?? '',
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Bina yaşı'),
-                    keyboardType: TextInputType.number,
-                    onSaved: (v) => buildingAge = v?.trim() ?? '',
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'm²'),
-                    keyboardType: TextInputType.number,
-                    onSaved: (v) => squareMeters = v?.trim() ?? '',
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Isıtma'),
-                    onSaved: (v) => heating = v?.trim() ?? '',
-                  ),
-                  SwitchListTile(
-                    value: hasElevator,
-                    onChanged: (v) => setDialogState(() => hasElevator = v),
-                    title: const Text('Asansör var mı?'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  SwitchListTile(
-                    value: inComplex,
-                    onChanged: (v) => setDialogState(() => inComplex = v),
-                    title: const Text('Site içerisinde mi?'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  SwitchListTile(
-                    value: hasDues,
-                    onChanged: (v) => setDialogState(() => hasDues = v),
-                    title: const Text('Aidat var mı?'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Aidat (TL)'),
-                    keyboardType: TextInputType.number,
-                    onSaved: (v) => duesAmount = v?.trim() ?? '',
-                  ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Adres tarifi'),
-                    onSaved: (v) => addressDirections = v?.trim() ?? '',
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
-            ElevatedButton(
-              onPressed: () async {
-                if (!formKey.currentState!.validate()) return;
-                formKey.currentState!.save();
-                if (images.length < 4) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('En az 4 görsel ekleyin.')),
-                  );
-                  return;
-                }
-
-                String finalOwnerName = ownerName;
-                try {
-                  final uid = ownerId;
-                  if (uid.isNotEmpty) {
-                    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-                    if (userDoc.exists) {
-                      finalOwnerName = (userDoc.data()?['name'] as String?)?.trim().isNotEmpty == true
-                          ? (userDoc.data()?['name'] as String)
-                          : finalOwnerName;
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('İptal'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (!formKey.currentState!.validate()) return;
+                    formKey.currentState!.save();
+                    if (images.length < 4) {
+                       ScaffoldMessenger.of(context).showSnackBar(
+                         const SnackBar(content: Text('En az 4 görsel ekleyin.')),
+                       );
+                       return;
                     }
-                  }
-                } catch (_) {}
+                    
+                    String finalOwnerName = ownerName;
+                    try {
+                      final uid = ownerId;
+                      if (uid.isNotEmpty) {
+                        final userMap = await ApiService.fetchUser(uid);
+                        if (userMap != null) {
+                           finalOwnerName = (userMap['name'] as String?)?.trim().isNotEmpty == true
+                              ? (userMap['name'] as String)
+                              : finalOwnerName;
+                        }
+                      }
+                    } catch (_) {}
 
-                await FirebaseFirestore.instance.collection('listings').add({
-                  'title': title,
-                  'description': description,
-                  'price': '₺$price',
-                  'location': location.isEmpty ? city : location,
-                  'city': city,
-                  'imageUrl': imageUrl,
-                  'petsAllowed': petsAllowed,
-                  'images': images,
-                  'ownerName': finalOwnerName.isNotEmpty ? finalOwnerName : ownerName,
-                  'ownerId': ownerId,
-                  'category': 'house',
-                  'roomCount': roomCount,
-                  'hasBalcony': hasBalcony,
-                  'balconyCount': balconyCount,
-                  'buildingFloors': buildingFloors,
-                  'apartmentFloor': apartmentFloor,
-                  'bathrooms': bathrooms,
-                  'buildingAge': buildingAge,
-                  'squareMeters': squareMeters,
-                  'heating': heating,
-                  'hasElevator': hasElevator,
-                  'inComplex': inComplex,
-                  'hasDues': hasDues,
-                  'duesAmount': duesAmount,
-                  'addressDirections': addressDirections,
-                  'createdAt': FieldValue.serverTimestamp(),
-                  'updatedAt': FieldValue.serverTimestamp(),
-                });
-                Navigator.pop(context);
-              },
-              child: const Text('Ekle'),
-            ),
-          ],
+                    await ApiService.createListing({
+                       'title': title,
+                       'description': description,
+                       'price': '₺$price',
+                       'location': location.isEmpty ? city : location,
+                       'city': city,
+                       'imageUrl': imageUrl,
+                       'petsAllowed': petsAllowed,
+                       'images': images,
+                       'ownerName': finalOwnerName.isNotEmpty ? finalOwnerName : ownerName,
+                       'ownerId': ownerId,
+                       'category': 'house',
+                       'roomCount': roomCount,
+                       'hasGarden': hasGarden,
+                       'hasGarage': hasGarage,
+                       'heating': heating,
+                       'squareMeters': squareMeters,
+                       'addressDirections': addressDirections,
+                       // timestamps added by backend
+                    });
+                    if (mounted) Navigator.pop(context);
+                    _loadListings();
+                  },
+                  child: const Text('Ekle'),
+                ),
+              ],
             );
           },
         );
       },
     );
+  }
+
+  Future<List<String>?> _pickImages() async {
+     try {
+       final ImagePicker picker = ImagePicker();
+       final List<XFile> files = await picker.pickMultiImage(imageQuality: 90);
+       if (files.isEmpty) return null;
+       return files.map((f) => f.path).toList();
+     } catch (e) {
+       return null;
+     }
   }
 
   @override
@@ -349,14 +251,11 @@ class _HouseListScreenState extends State<HouseListScreen> {
       backgroundColor: const Color(0xFFFDF6E3),
       appBar: AppBar(
         title: const Text(
-          'House Listings',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          'Müstakil Ev',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFD4AF37),
         foregroundColor: const Color(0xFF8B4513),
-        elevation: 0,
         centerTitle: true,
       ),
       body: SafeArea(
@@ -366,94 +265,53 @@ class _HouseListScreenState extends State<HouseListScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               PremiumAlertBanner(onSubscribe: _openSubscriptionDialog),
-              if (_isSubscribed)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Row(
-                    children: const [
-                      Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 16),
-                      SizedBox(width: 4),
-                      Text('Premium Abonelik Aktif', style: TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
               const SizedBox(height: 16),
-              Text(
-                'Available Houses',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF8B4513),
-                ),
-              ),
-              const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedCity,
-                      items: [
-                        const DropdownMenuItem(value: 'Tümü', child: Text('Tüm Şehirler')),
-                        ...trCities81.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                      ],
-                      onChanged: (v) {
-                        if (v != null && v != _selectedCity) {
-                          setState(() => _selectedCity = v);
-                          _updateStream();
-                        }
-                      },
-                      decoration: const InputDecoration(
-                        labelText: 'Şehir',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                        prefixIcon: Icon(Icons.location_city, color: Color(0xFFD4AF37)),
-                      ),
-                    ),
-                  ),
+                   const Icon(Icons.location_city, color: Color(0xFFD4AF37)),
+                   const SizedBox(width: 8),
+                   Expanded(
+                     child: DropdownButtonFormField<String>(
+                       value: _selectedCity,
+                       items: [
+                         const DropdownMenuItem(value: 'Tümü', child: Text('Tüm Şehirler')),
+                         ...trCities81.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                       ],
+                       onChanged: (v) {
+                         if (v != null) {
+                           setState(() => _selectedCity = v);
+                           _loadListings();
+                         }
+                       },
+                       decoration: const InputDecoration(
+                         labelText: 'Şehre göre filtrele',
+                         border: OutlineInputBorder(),
+                         isDense: true,
+                       ),
+                     ),
+                   ),
                 ],
               ),
               const SizedBox(height: 12),
               Expanded(
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _listingsStream,
-                  key: ValueKey(_selectedCity),
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _listingsFuture,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (snapshot.hasError) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Hata: ${snapshot.error}',
-                              style: TextStyle(color: Colors.red.shade700),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 8),
-                            ElevatedButton(
-                              onPressed: () => setState(() {}),
-                              child: const Text('Yeniden Dene'),
-                            ),
-                          ],
-                        ),
-                      );
+                       return Center(child: Text('Hata: ${snapshot.error}'));
                     }
-                    if (!snapshot.hasData) {
-                      return const Center(child: Text('Sonuç bulunamadı'));
-                    }
-                    final docs = snapshot.data?.docs ?? [];
+                    final docs = snapshot.data ?? [];
                     if (docs.isEmpty) {
                       return const Center(child: Text('Sonuç bulunamadı'));
                     }
                     return ListView.builder(
                       itemCount: docs.length,
                       itemBuilder: (context, index) {
-                        final data = docs[index].data();
-                        return _buildListingCard(data);
+                         final data = docs[index];
+                         return _buildListingCard(data);
                       },
                     );
                   },
@@ -501,78 +359,36 @@ class _HouseListScreenState extends State<HouseListScreen> {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                // Image placeholder
                 _buildImage(listing),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      GestureDetector(
-                        onTap: () {
-                          final ownerId = listing['ownerId'] as String?;
-                          if (ownerId != null && ownerId.isNotEmpty) {
-                            Navigator.pushNamed(
-                              context,
-                              '/user-profile',
-                              arguments: {'userId': ownerId},
-                            );
-                          }
-                        },
-                        child: Text(
-                          listing['title'],
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF8B4513),
-                          ),
+                      Text(
+                        listing['title'] ?? '',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF8B4513),
                         ),
                       ),
-                      const SizedBox(height: 4),
                       Text(
-                        listing['description'],
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: const Color(0xFFCD853F),
-                        ),
+                        listing['location'] ?? '',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on,
-                            size: 16,
-                            color: const Color(0xFFD4AF37),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              listing['location'],
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: const Color(0xFF8B4513),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
                       Text(
-                        listing['price'],
-                        style: TextStyle(
+                        listing['price'] ?? '',
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFFD4AF37),
+                          color: Color(0xFFD4AF37),
                         ),
                       ),
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: const Color(0xFFD4AF37),
-                ),
+                const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFFD4AF37)),
               ],
             ),
           ),
@@ -582,36 +398,34 @@ class _HouseListScreenState extends State<HouseListScreen> {
   }
 
   Widget _buildImage(Map<String, dynamic> listing) {
-    final List<dynamic>? localImages = listing['images'] as List<dynamic>?;
-    if (localImages != null && localImages.isNotEmpty) {
-      final String firstPath = localImages.first as String;
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.file(
-          File(firstPath),
-          width: 80,
-          height: 80,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stack) {
-            return _imagePlaceholder();
-          },
-        ),
-      );
+    // Try to find first image
+    String? path;
+    if (listing['images'] != null && (listing['images'] as List).isNotEmpty) {
+       path = (listing['images'] as List)[0];
+    } else if (listing['imageUrl'] != null && (listing['imageUrl'] as String).isNotEmpty) {
+       path = listing['imageUrl'];
     }
-    final String? imageUrl = listing['imageUrl'] as String?;
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          imageUrl,
-          width: 80,
-          height: 80,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stack) {
-            return _imagePlaceholder();
-          },
-        ),
-      );
+
+    if (path != null) {
+      // Local or network?
+      // Since ApiService saves whatever string, and ImagePicker returns local paths,
+      // For shared listings, local paths won't work on other devices unless we upload to storage.
+      // But for this local demo/emulator it might work if on same device.
+      // Ideally we need Firebase Storage URL. 
+      // But for now let's try to show placeholder if it fails or if it looks like a local path we can't read?
+      // Actually image logic across the app relies on paths. 
+      // If path starts with http, use network. Else file.
+      if (path.startsWith('http')) {
+         return ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(path, width: 80, height: 80, fit: BoxFit.cover, errorBuilder: (_,__,___) => _imagePlaceholder()),
+         ); 
+      } else {
+         return ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(File(path), width: 80, height: 80, fit: BoxFit.cover, errorBuilder: (_,__,___) => _imagePlaceholder()),
+         ); 
+      }
     }
     return _imagePlaceholder();
   }
@@ -624,23 +438,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
         color: const Color(0xFFD4AF37).withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Icon(
-        Icons.home,
-        size: 40,
-        color: Color(0xFFD4AF37),
-      ),
+      child: const Icon(Icons.home, color: Color(0xFFD4AF37)),
     );
-  }
-
-  Future<List<String>?> _pickImages() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final List<XFile> files = await picker.pickMultiImage(imageQuality: 90);
-      if (files.isEmpty) return null;
-      return files.map((f) => f.path).toList();
-    } catch (e) {
-      debugPrint('Görsel seçme hatası: $e');
-      return null;
-    }
   }
 }

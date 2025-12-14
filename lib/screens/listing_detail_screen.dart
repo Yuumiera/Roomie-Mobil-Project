@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/api_service.dart';
 import 'chat_screen.dart';
 
 class ListingDetailScreen extends StatefulWidget {
@@ -99,15 +100,12 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                       const CircleAvatar(child: Icon(Icons.person)),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                          future: ownerId.isEmpty
-                              ? null
-                              : FirebaseFirestore.instance.collection('users').doc(ownerId).get(),
+                        child: FutureBuilder<Map<String, dynamic>?>(
+                          future: ownerId.isEmpty ? null : ApiService.fetchUser(ownerId),
                           builder: (context, snap) {
                             String displayName = ownerName;
-                            if (snap.hasData && snap.data!.exists) {
-                              final data = snap.data!.data();
-                              final n = (data?['name'] as String?)?.trim();
+                            if (snap.hasData && snap.data != null) {
+                              final n = (snap.data!['name'] as String?)?.trim();
                               if (n != null && n.isNotEmpty) displayName = n;
                             }
                             return Text(displayName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600));

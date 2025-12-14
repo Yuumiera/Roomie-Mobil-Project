@@ -1,0 +1,848 @@
+﻿
+Running Gradle task 'assembleDebug'...                          
+Warning: The plugin flutter_plugin_android_lifecycle requires Android SDK version 35 or higher.
+For more information about build configuration, see https://flutter.dev/to/review-gradle-config.
+flutter : Your projec
+t is configured to co
+mpile against Android
+ SDK 34, but the foll
+owing plugin(s) requi
+re to be compiled aga
+inst a higher Android
+ SDK version:
+At line:1 char:1
++ flutter build apk -
+-debug > build_log.tx
+t 2>&1
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (Your pr   
+ oject is...id SD    
+K version::Strin    g
+) [], RemoteExc    ep
+tion
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+- flutter_plugin_andr
+oid_lifecycle compile
+s against Android SDK
+ 35
+Fix this issue by com
+piling against the hi
+ghest Android SDK ver
+sion (they are backwa
+rd compatible).
+Add the following to 
+C:\Users\ASUS\Desktop
+\Projects\roomie_mobi
+l_project\android\app
+\build.gradle:
+
+    android {
+        compileSdk = 
+35
+        ...
+    }
+
+lib/screens/apartment
+_list_screen.dart:54:
+1: Error: The '===' o
+perator is not suppor
+ted.
+=======
+^
+lib/screens/apartment
+_list_screen.dart:54:
+4: Error: The '===' o
+perator is not suppor
+ted.
+=======
+   ^
+lib/screens/apartment
+_list_screen.dart:17:
+68: Error: Can't find
+ '}' to match '{'.
+class _ApartmentListS
+creenState extends St
+ate<ApartmentListScre
+en> {
+                     
+                     
+                     
+    ^
+lib/screens/apartment
+_list_screen.dart:29:
+1: Error: Operator de
+clarations must be pr
+eceded by the keyword
+ 'operator'.
+Try adding the keywor
+d 'operator'.
+<<<<<<< HEAD
+^^
+lib/screens/apartment
+_list_screen.dart:29:
+1: Error: A method de
+claration needs an ex
+plicit list of parame
+ters.
+Try adding a paramete
+r list to the method 
+declaration.
+<<<<<<< HEAD
+^^
+lib/screens/apartment
+_list_screen.dart:29:
+3: Error: Expected '{
+' before this.
+<<<<<<< HEAD
+  ^^
+lib/screens/apartment
+_list_screen.dart:29:
+1: Error: Operator '<
+<' should have exactl
+y one parameter.
+<<<<<<< HEAD
+^^
+lib/screens/apartment
+_list_screen.dart:29:
+3: Error: Operator de
+clarations must be pr
+eceded by the keyword
+ 'operator'.
+Try adding the keywor
+d 'operator'.
+<<<<<<< HEAD
+  ^^
+lib/screens/apartment
+_list_screen.dart:29:
+3: Error: A method de
+claration needs an ex
+plicit list of parame
+ters.
+Try adding a paramete
+r list to the method 
+declaration.
+<<<<<<< HEAD
+  ^^
+lib/screens/apartment
+_list_screen.dart:29:
+5: Error: Expected '{
+' before this.
+<<<<<<< HEAD
+    ^^
+lib/screens/apartment
+_list_screen.dart:29:
+3: Error: Operator '<
+<' should have exactl
+y one parameter.
+<<<<<<< HEAD
+  ^^
+lib/screens/apartment
+_list_screen.dart:29:
+3: Error: '<<' is alr
+eady declared in this
+ scope.
+<<<<<<< HEAD
+  ^^
+lib/screens/apartment
+_list_screen.dart:29:
+1: Context: Previous 
+declaration of '<<'.
+<<<<<<< HEAD
+^^
+lib/screens/apartment
+_list_screen.dart:29:
+5: Error: Operator de
+clarations must be pr
+eceded by the keyword
+ 'operator'.
+Try adding the keywor
+d 'operator'.
+<<<<<<< HEAD
+    ^^
+lib/screens/apartment
+_list_screen.dart:29:
+9: Error: Expected '>
+' after this.
+<<<<<<< HEAD
+        ^^^^
+lib/screens/apartment
+_list_screen.dart:29:
+5: Error: A method de
+claration needs an ex
+plicit list of parame
+ters.
+Try adding a paramete
+r list to the method 
+declaration.
+<<<<<<< HEAD
+    ^^
+lib/screens/apartment
+_list_screen.dart:30:
+3: Error: Expected '{
+' before this.
+  Future<void> _openS
+ubscriptionDialog() a
+sync {
+  ^^^^^^
+lib/screens/apartment
+_list_screen.dart:29:
+5: Error: Operator '<
+<' should have exactl
+y one parameter.
+<<<<<<< HEAD
+    ^^
+lib/screens/apartment
+_list_screen.dart:29:
+9: Error: Types param
+eters aren't allowed 
+when defining an oper
+ator.
+Try removing the type
+ parameters.
+<<<<<<< HEAD
+        ^^^^
+lib/screens/apartment
+_list_screen.dart:29:
+5: Error: '<<' is alr
+eady declared in this
+ scope.
+<<<<<<< HEAD
+    ^^
+lib/screens/apartment
+_list_screen.dart:29:
+3: Context: Previous 
+declaration of '<<'.
+<<<<<<< HEAD
+  ^^
+lib/screens/apartment
+_list_screen.dart:53:
+47: Error: '_listings
+Stream' is already de
+clared in this scope.
+  Stream<QuerySnapsho
+t<Map<String, dynamic
+>>> _listingsStream()
+ {
+                     
+                     
+    ^^^^^^^^^^^^^^^
+lib/screens/apartment
+_list_screen.dart:21:
+48: Context: Previous
+ declaration of '_lis
+tingsStream'.
+  Stream<QuerySnapsho
+t<Map<String, dynamic
+>>>? _listingsStream;
+                     
+                     
+     ^^^^^^^^^^^^^^^
+lib/screens/apartment
+_list_screen.dart:17:
+7: Error: The non-abs
+tract class '_Apartme
+ntListScreenState' is
+ missing implementati
+ons for these members
+:
+ - State.build
+Try to either
+ - provide an impleme
+ntation,
+ - inherit an impleme
+ntation from a superc
+lass or mixin,
+ - mark the class as 
+abstract, or
+ - provide a 'noSuchM
+ethod' implementation
+.
+
+class _ApartmentListS
+creenState extends St
+ate<ApartmentListScre
+en> {
+      ^^^^^^^^^^^^^^^
+^^^^^^^^^^
+/C:/src/flutter_windo
+ws_3.24.4-stable/flut
+ter/packages/flutter/
+lib/src/widgets/frame
+work.dart:1467:10: Co
+ntext: 'State.build' 
+is defined here.
+  Widget build(BuildC
+ontext context);
+         ^^^^^
+lib/screens/apartment
+_list_screen.dart:26:
+5: Error: The method 
+'_updateStream' isn't
+ defined for the clas
+s '_ApartmentListScre
+enState'.
+ - '_ApartmentListScr
+eenState' is from 'pa
+ckage:roomie_mobil_pr
+oject/screens/apartme
+nt_list_screen.dart' 
+('lib/screens/apartme
+nt_list_screen.dart')
+.
+Try correcting the na
+me to the name of an 
+existing method, or d
+efining a method name
+d '_updateStream'.
+    _updateStream();
+    ^^^^^^^^^^^^^
+lib/screens/apartment
+_list_screen.dart:54:
+1: Error: Expected an
+ identifier, but got 
+'==='.
+Try inserting an iden
+tifier before '==='.
+=======
+^^^
+lib/screens/apartment
+_list_screen.dart:54:
+7: Error: Expected an
+ identifier, but got 
+'='.
+Try inserting an iden
+tifier before '='.
+=======
+      ^
+lib/screens/apartment
+_list_screen.dart:54:
+4: Error: The string 
+'===' isn't a user-de
+finable operator.
+=======
+   ^^^
+lib/screens/apartment
+_list_screen.dart:55:
+8: Error: A function 
+expression can't have
+ a name.
+  void _updateStream(
+) {
+       ^^^^^^^^^^^^^
+lib/screens/apartment
+_list_screen.dart:56:
+1: Error: Expected an
+ identifier, but got 
+'>>>'.
+Try inserting an iden
+tifier before '>>>'.
+>>>>>>> 3620e6db971ec
+bec5072851057d147cc10
+0f1724
+^^^
+lib/screens/apartment
+_list_screen.dart:56:
+4: Error: Expected an
+ identifier, but got 
+'>>>'.
+Try inserting an iden
+tifier before '>>>'.
+>>>>>>> 3620e6db971ec
+bec5072851057d147cc10
+0f1724
+   ^^^
+lib/screens/apartment
+_list_screen.dart:56:
+7: Error: Expected an
+ identifier, but got 
+'>'.
+Try inserting an iden
+tifier before '>'.
+>>>>>>> 3620e6db971ec
+bec5072851057d147cc10
+0f1724
+      ^
+lib/screens/apartment
+_list_screen.dart:56:
+9: Error: Expected ';
+' after this.
+>>>>>>> 3620e6db971ec
+bec5072851057d147cc10
+0f1724
+        ^^^^^^
+lib/screens/apartment
+_list_screen.dart:56:
+15: Error: Expected '
+;' after this.
+>>>>>>> 3620e6db971ec
+bec5072851057d147cc10
+0f1724
+              ^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+^^^^^^
+lib/screens/apartment
+_list_screen.dart:62:
+25: Error: Can't assi
+gn to this.
+        _listingsStre
+am = query.snapshots(
+);
+                     
+   ^
+lib/screens/apartment
+_list_screen.dart:64:
+25: Error: Can't assi
+gn to this.
+        _listingsStre
+am = query.where('cit
+y', isEqualTo: _selec
+tedCity).snapshots();
+                     
+   ^
+lib/screens/apartment
+_list_screen.dart:54:
+7: Error: Can't assig
+n to this.
+=======
+      ^
+lib/screens/apartment
+_list_screen.dart:67:
+3: Error: Expected ';
+' after this.
+  }
+  ^
+lib/screens/apartment
+_list_screen.dart:70:
+5: Error: Local varia
+ble '_showAddListingD
+ialog' can't be refer
+enced before it is de
+clared.
+    _showAddListingDi
+alog();
+    ^^^^^^^^^^^^^^^^^
+^^^^
+lib/screens/apartment
+_list_screen.dart:73:
+8: Context: This is t
+he declaration of the
+ variable '_showAddLi
+stingDialog'.
+  void _showAddListin
+gDialog() {
+       ^^^^^^^^^^^^^^
+^^^^^^^
+lib/screens/apartment
+_list_screen.dart:408
+:27: Error: Can't use
+ '_listingsStream' be
+cause it is declared 
+more than once.
+                  str
+eam: _listingsStream,
+                     
+     ^
+lib/screens/apartment
+_list_screen.dart:446
+:32: Error: Local var
+iable '_buildListingC
+ard' can't be referen
+ced before it is decl
+ared.
+                     
+   return _buildListi
+ngCard(data);
+                     
+          ^^^^^^^^^^^
+^^^^^^
+lib/screens/apartment
+_list_screen.dart:465
+:10: Context: This is
+ the declaration of t
+he variable '_buildLi
+stingCard'.
+  Widget _buildListin
+gCard(Map<String, dyn
+amic> listing) {
+         ^^^^^^^^^^^^
+^^^^^
+lib/screens/apartment
+_list_screen.dart:495
+:17: Error: Local var
+iable '_buildImage' c
+an't be referenced be
+fore it is declared.
+                _buil
+dImage(listing),
+                ^^^^^
+^^^^^^
+lib/screens/apartment
+_list_screen.dart:562
+:10: Context: This is
+ the declaration of t
+he variable '_buildIm
+age'.
+  Widget _buildImage(
+Map<String, dynamic> 
+listing) {
+         ^^^^^^^^^^^
+lib/screens/apartment
+_list_screen.dart:574
+:20: Error: Local var
+iable '_imagePlacehol
+der' can't be referen
+ced before it is decl
+ared.
+            return _i
+magePlaceholder();
+                   ^^
+^^^^^^^^^^^^^^^
+lib/screens/apartment
+_list_screen.dart:597
+:10: Context: This is
+ the declaration of t
+he variable '_imagePl
+aceholder'.
+  Widget _imagePlaceh
+older() {
+         ^^^^^^^^^^^^
+^^^^^
+lib/screens/apartment
+_list_screen.dart:589
+:20: Error: Local var
+iable '_imagePlacehol
+der' can't be referen
+ced before it is decl
+ared.
+            return _i
+magePlaceholder();
+                   ^^
+^^^^^^^^^^^^^^^
+lib/screens/apartment
+_list_screen.dart:597
+:10: Context: This is
+ the declaration of t
+he variable '_imagePl
+aceholder'.
+  Widget _imagePlaceh
+older() {
+         ^^^^^^^^^^^^
+^^^^^
+lib/screens/apartment
+_list_screen.dart:594
+:12: Error: Local var
+iable '_imagePlacehol
+der' can't be referen
+ced before it is decl
+ared.
+    return _imagePlac
+eholder();
+           ^^^^^^^^^^
+^^^^^^^
+lib/screens/apartment
+_list_screen.dart:597
+:10: Context: This is
+ the declaration of t
+he variable '_imagePl
+aceholder'.
+  Widget _imagePlaceh
+older() {
+         ^^^^^^^^^^^^
+^^^^^
+lib/screens/apartment
+_list_screen.dart:152
+:46: Error: Local var
+iable '_pickImages' c
+an't be referenced be
+fore it is declared.
+                     
+   final picked = awa
+it _pickImages();
+                     
+                     
+   ^^^^^^^^^^^
+lib/screens/apartment
+_list_screen.dart:613
+:25: Context: This is
+ the declaration of t
+he variable '_pickIma
+ges'.
+  Future<List<String>
+?> _pickImages() asyn
+c {
+                     
+   ^^^^^^^^^^^
+lib/screens/apartment
+_list_screen.dart:70:
+5: Error: The method 
+'_showAddListingDialo
+g' isn't defined for 
+the class '_Apartment
+ListScreenState'.
+ - '_ApartmentListScr
+eenState' is from 'pa
+ckage:roomie_mobil_pr
+oject/screens/apartme
+nt_list_screen.dart' 
+('lib/screens/apartme
+nt_list_screen.dart')
+.
+Try correcting the na
+me to the name of an 
+existing method, or d
+efining a method name
+d '_showAddListingDia
+log'.
+    _showAddListingDi
+alog();
+    ^^^^^^^^^^^^^^^^^
+^^^^
+lib/screens/apartment
+_list_screen.dart:152
+:46: Error: The metho
+d '_pickImages' isn't
+ defined for the clas
+s '_ApartmentListScre
+enState'.
+ - '_ApartmentListScr
+eenState' is from 'pa
+ckage:roomie_mobil_pr
+oject/screens/apartme
+nt_list_screen.dart' 
+('lib/screens/apartme
+nt_list_screen.dart')
+.
+Try correcting the na
+me to the name of an 
+existing method, or d
+efining a method name
+d '_pickImages'.
+                     
+   final picked = awa
+it _pickImages();
+                     
+                     
+   ^^^^^^^^^^^
+lib/screens/apartment
+_list_screen.dart:393
+:27: Error: The metho
+d '_updateStream' isn
+'t defined for the cl
+ass '_ApartmentListSc
+reenState'.
+ - '_ApartmentListScr
+eenState' is from 'pa
+ckage:roomie_mobil_pr
+oject/screens/apartme
+nt_list_screen.dart' 
+('lib/screens/apartme
+nt_list_screen.dart')
+.
+Try correcting the na
+me to the name of an 
+existing method, or d
+efining a method name
+d '_updateStream'.
+                     
+     _updateStream();
+                     
+     ^^^^^^^^^^^^^
+lib/screens/apartment
+_list_screen.dart:446
+:32: Error: The metho
+d '_buildListingCard'
+ isn't defined for th
+e class '_ApartmentLi
+stScreenState'.
+ - '_ApartmentListScr
+eenState' is from 'pa
+ckage:roomie_mobil_pr
+oject/screens/apartme
+nt_list_screen.dart' 
+('lib/screens/apartme
+nt_list_screen.dart')
+.
+Try correcting the na
+me to the name of an 
+existing method, or d
+efining a method name
+d '_buildListingCard'
+.
+                     
+   return _buildListi
+ngCard(data);
+                     
+          ^^^^^^^^^^^
+^^^^^^
+lib/screens/apartment
+_list_screen.dart:495
+:17: Error: The metho
+d '_buildImage' isn't
+ defined for the clas
+s '_ApartmentListScre
+enState'.
+ - '_ApartmentListScr
+eenState' is from 'pa
+ckage:roomie_mobil_pr
+oject/screens/apartme
+nt_list_screen.dart' 
+('lib/screens/apartme
+nt_list_screen.dart')
+.
+Try correcting the na
+me to the name of an 
+existing method, or d
+efining a method name
+d '_buildImage'.
+                _buil
+dImage(listing),
+                ^^^^^
+^^^^^^
+lib/screens/apartment
+_list_screen.dart:574
+:20: Error: The metho
+d '_imagePlaceholder'
+ isn't defined for th
+e class '_ApartmentLi
+stScreenState'.
+ - '_ApartmentListScr
+eenState' is from 'pa
+ckage:roomie_mobil_pr
+oject/screens/apartme
+nt_list_screen.dart' 
+('lib/screens/apartme
+nt_list_screen.dart')
+.
+Try correcting the na
+me to the name of an 
+existing method, or d
+efining a method name
+d '_imagePlaceholder'
+.
+            return _i
+magePlaceholder();
+                   ^^
+^^^^^^^^^^^^^^^
+lib/screens/apartment
+_list_screen.dart:589
+:20: Error: The metho
+d '_imagePlaceholder'
+ isn't defined for th
+e class '_ApartmentLi
+stScreenState'.
+ - '_ApartmentListScr
+eenState' is from 'pa
+ckage:roomie_mobil_pr
+oject/screens/apartme
+nt_list_screen.dart' 
+('lib/screens/apartme
+nt_list_screen.dart')
+.
+Try correcting the na
+me to the name of an 
+existing method, or d
+efining a method name
+d '_imagePlaceholder'
+.
+            return _i
+magePlaceholder();
+                   ^^
+^^^^^^^^^^^^^^^
+lib/screens/apartment
+_list_screen.dart:594
+:12: Error: The metho
+d '_imagePlaceholder'
+ isn't defined for th
+e class '_ApartmentLi
+stScreenState'.
+ - '_ApartmentListScr
+eenState' is from 'pa
+ckage:roomie_mobil_pr
+oject/screens/apartme
+nt_list_screen.dart' 
+('lib/screens/apartme
+nt_list_screen.dart')
+.
+Try correcting the na
+me to the name of an 
+existing method, or d
+efining a method name
+d '_imagePlaceholder'
+.
+    return _imagePlac
+eholder();
+           ^^^^^^^^^^
+^^^^^^^
+lib/screens/apartment
+_list_screen.dart:53:
+47: Error: A non-null
+ value must be return
+ed since the return t
+ype 'Stream<QuerySnap
+shot<Map<String, dyna
+mic>>>' doesn't allow
+ null.
+ - 'Stream' is from '
+dart:async'.
+ - 'QuerySnapshot' is
+ from 'package:cloud_
+firestore/cloud_fires
+tore.dart' ('../../..
+/AppData/Local/Pub/Ca
+che/hosted/pub.dev/cl
+oud_firestore-5.6.12/
+lib/cloud_firestore.d
+art').
+ - 'Map' is from 'dar
+t:core'.
+  Stream<QuerySnapsho
+t<Map<String, dynamic
+>>> _listingsStream()
+ {
+                     
+                     
+    ^
+Target kernel_snapsho
+t_program failed: Exc
+eption
+
+
+FAILURE: Build failed
+ with an exception.
+
+* What went wrong:
+Execution failed for 
+task ':app:compileFlu
+tterBuildDebug'.
+> Process 'command 'C
+:\src\flutter_windows
+_3.24.4-stable\flutte
+r\bin\flutter.bat'' f
+inished with non-zero
+ exit value 1
+
+* Try:
+> Run with --stacktra
+ce option to get the 
+stack trace.
+> Run with --info or 
+--debug option to get
+ more log output.
+> Run with --scan to 
+get full insights.
+> Get more help at ht
+tps://help.gradle.org
+.
+
+BU´┐¢LD FAILED in 11s
+Running Gradle task 'assembleDebug'...                             12,6s
+Gradle task assembleD
+ebug failed with exit
+ code 1

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/cities.dart';
 import '../widgets/alert_subscription_dialog.dart';
 import '../widgets/premium_alert_banner.dart';
+import '../services/api_service.dart';
 
 class ApartmentListScreen extends StatefulWidget {
   const ApartmentListScreen({super.key});
@@ -15,18 +15,22 @@ class ApartmentListScreen extends StatefulWidget {
 }
 
 class _ApartmentListScreenState extends State<ApartmentListScreen> {
-  // Firestore-backed; remove hardcoded demo data
-
   String _selectedCity = 'Tümü';
-  Stream<QuerySnapshot<Map<String, dynamic>>>? _listingsStream;
+  // We use a Future for the API call
+  late Future<List<Map<String, dynamic>>> _listingsFuture;
 
   @override
   void initState() {
     super.initState();
-    _updateStream();
+    _loadListings();
   }
 
-<<<<<<< HEAD
+  void _loadListings() {
+    setState(() {
+      _listingsFuture = ApiService.fetchListings(city: _selectedCity);
+    });
+  }
+
   Future<void> _openSubscriptionDialog() async {
     final Map<String, dynamic> criteria = {
       'city': _selectedCity == 'Tümü' ? null : _selectedCity,
@@ -48,22 +52,6 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
         const SnackBar(content: Text('Aboneliğiniz başlatıldı.')),
       );
     }
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _listingsStream() {
-=======
-  void _updateStream() {
->>>>>>> 3620e6db971ecbec5072851057d147cc100f1724
-    final query = FirebaseFirestore.instance
-        .collection('listings')
-        .where('category', isEqualTo: 'apartment');
-    setState(() {
-      if (_selectedCity == 'Tümü') {
-        _listingsStream = query.snapshots();
-      } else {
-        _listingsStream = query.where('city', isEqualTo: _selectedCity).snapshots();
-      }
-    });
   }
 
   void _addNewListing() {
@@ -293,16 +281,16 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                 try {
                   final uid = ownerId;
                   if (uid.isNotEmpty) {
-                    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-                    if (userDoc.exists) {
-                      finalOwnerName = (userDoc.data()?['name'] as String?)?.trim().isNotEmpty == true
-                          ? (userDoc.data()?['name'] as String)
+                    final userMap = await ApiService.fetchUser(uid);
+                    if (userMap != null) {
+                      finalOwnerName = (userMap['name'] as String?)?.trim().isNotEmpty == true
+                          ? (userMap['name'] as String)
                           : finalOwnerName;
                     }
                   }
                 } catch (_) {}
 
-                await FirebaseFirestore.instance.collection('listings').add({
+                await ApiService.createListing({
                   'title': title,
                   'description': description,
                   'price': '₺$price',
@@ -328,10 +316,11 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                   'hasDues': hasDues,
                   'duesAmount': duesAmount,
                   'addressDirections': addressDirections,
-                  'createdAt': FieldValue.serverTimestamp(),
-                  'updatedAt': FieldValue.serverTimestamp(),
+                  // timestamps added by backend
                 });
                 Navigator.pop(context);
+                // Refresh the list through API
+                _loadListings();
               },
               child: const Text('Ekle'),
             ),
@@ -390,7 +379,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                       onChanged: (v) {
                         if (v != null && v != _selectedCity) {
                           setState(() => _selectedCity = v);
-                          _updateStream();
+                          _loadListings();
                         }
                       },
                       decoration: const InputDecoration(
@@ -404,9 +393,8 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
               ),
               const SizedBox(height: 12),
               Expanded(
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _listingsStream,
-                  key: ValueKey(_selectedCity),
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _listingsFuture,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
@@ -425,7 +413,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                             ),
                             const SizedBox(height: 8),
                             ElevatedButton(
-                              onPressed: () => setState(() {}),
+                              onPressed: _loadListings,
                               child: const Text('Yeniden Dene'),
                             ),
                           ],
@@ -435,16 +423,19 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                     if (!snapshot.hasData) {
                       return const Center(child: Text('Sonuç bulunamadı'));
                     }
-                    final docs = snapshot.data?.docs ?? [];
+                    final docs = snapshot.data ?? [];
                     if (docs.isEmpty) {
                       return const Center(child: Text('Sonuç bulunamadı'));
                     }
-                    return ListView.builder(
-                      itemCount: docs.length,
-                      itemBuilder: (context, index) {
-                        final data = docs[index].data();
-                        return _buildListingCard(data);
-                      },
+                    return RefreshIndicator(
+                      onRefresh: () async => _loadListings(),
+                      child: ListView.builder(
+                        itemCount: docs.length,
+                        itemBuilder: (context, index) {
+                          final data = docs[index];
+                          return _buildListingCard(data);
+                        },
+                      ),
                     );
                   },
                 ),
@@ -499,7 +490,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        listing['title'],
+                        listing['title'] ?? 'Başlıksız',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -508,7 +499,9 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        listing['description'],
+                        listing['description'] ?? '',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 14,
                           color: const Color(0xFFCD853F),
@@ -525,7 +518,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              listing['location'],
+                              listing['location'] ?? (listing['city'] ?? ''),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: const Color(0xFF8B4513),
@@ -536,7 +529,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        listing['price'],
+                        listing['price'] ?? '',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,

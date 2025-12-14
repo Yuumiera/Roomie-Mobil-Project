@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 import '../utils/cities.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -35,9 +36,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (user == null) return;
 
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      if (doc.exists) {
-        final data = doc.data()!;
+      final data = await ApiService.fetchUser(user.uid);
+      if (data != null) {
         setState(() {
           _name = data['name'];
           _bio = data['bio'];
@@ -68,7 +68,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        await ApiService.updateUser(user.uid, {
           'name': _name,
           'bio': _bio,
           'phone': _phone,
@@ -77,7 +77,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           'classYear': _classYear,
           'gender': _gender,
           'hasPet': _hasPet,
-          'updatedAt': FieldValue.serverTimestamp(),
+          // timestamps added by backend
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profil güncellendi')));

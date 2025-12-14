@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/cities.dart';
 import '../widgets/alert_subscription_dialog.dart';
 import '../widgets/premium_alert_banner.dart';
+import '../services/api_service.dart'; // Added ApiService import
 
 class DormitoryListScreen extends StatefulWidget {
   const DormitoryListScreen({super.key});
@@ -15,10 +15,26 @@ class DormitoryListScreen extends StatefulWidget {
 }
 
 class _DormitoryListScreenState extends State<DormitoryListScreen> {
-  // Firestore-backed; remove demo data
+  Future<List<Map<String, dynamic>>>? _listingsFuture;
 
   String _selectedCity = 'Tümü';
   int _selectedTabIndex = 0; // 0: Oda Değişimi, 1: Yurt Değişimi
+
+  @override
+  void initState() {
+    super.initState();
+    _loadListings();
+  }
+
+  void _loadListings() {
+    final String currentType = _selectedTabIndex == 0 ? 'Oda Değişimi' : 'Yurt Değişimi';
+    setState(() {
+      _listingsFuture = ApiService.fetchListings(
+        city: _selectedCity,
+        category: 'dormitory',
+      ).then((list) => list.where((item) => item['type'] == currentType).toList());
+    });
+  }
 
   void _addNewListing() {
     _showAddListingDialog();
@@ -49,6 +65,9 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
       );
     }
   }
+
+  // Duplicate _pickImages removed from here.
+
 
   void _showAddListingDialog() {
     final formKey = GlobalKey<FormState>();
@@ -234,16 +253,16 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
                 try {
                   final uid = ownerId;
                   if (uid.isNotEmpty) {
-                    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-                    if (userDoc.exists) {
-                      finalOwnerName = (userDoc.data()?['name'] as String?)?.trim().isNotEmpty == true
-                          ? (userDoc.data()?['name'] as String)
+                    final userMap = await ApiService.fetchUser(uid);
+                    if (userMap != null) {
+                       finalOwnerName = (userMap['name'] as String?)?.trim().isNotEmpty == true
+                          ? (userMap['name'] as String)
                           : finalOwnerName;
                     }
                   }
                 } catch (_) {}
 
-                await FirebaseFirestore.instance.collection('listings').add({
+                await ApiService.createListing({
                   'title': title,
                   'description': description,
                   'price': '₺$price',
@@ -260,10 +279,10 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
                   'bedType': bedType,
                   'bathroomInRoom': bathroomInRoom,
                   'addressDirections': addressDirections,
-                  'createdAt': FieldValue.serverTimestamp(),
-                  'updatedAt': FieldValue.serverTimestamp(),
+                  // timestamps added by backend
                 });
-                Navigator.pop(context);
+                if (mounted) Navigator.pop(context);
+                _loadListings();
               },
               child: const Text('Ekle'),
             ),
@@ -286,17 +305,10 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
     }
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _listingsStream() {
-    final String currentType = _selectedTabIndex == 0 ? 'Oda Değişimi' : 'Yurt Değişimi';
-    Query<Map<String, dynamic>> q = FirebaseFirestore.instance
-        .collection('listings')
-        .where('category', isEqualTo: 'dormitory')
-        .where('type', isEqualTo: currentType);
-    if (_selectedCity != 'Tümü') {
-      q = q.where('city', isEqualTo: _selectedCity);
-    }
-    return q.snapshots();
-  }
+  // _listingsStream removed
+  
+  // ignore: unused_element
+  // Stream<QuerySnapshot<Map<String, dynamic>>> _listingsStream() { ... } 
 
   @override
   Widget build(BuildContext context) {
@@ -341,45 +353,49 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
               // City filter dropdown
               Row(
                 children: [
-                  const Icon(Icons.location_city, color: Color(0xFF4CAF50)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedCity,
-                      items: [
-                        const DropdownMenuItem(value: 'Tümü', child: Text('Tüm Şehirler')),
-                        ...trCities81.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                      ],
-                      onChanged: (v) {
-                        if (v == null) return;
-                        setState(() => _selectedCity = v);
-                      },
-                      decoration: const InputDecoration(
-                        labelText: 'Şehre göre filtrele',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                    ),
-                  ),
+                   const Icon(Icons.location_city, color: Color(0xFF4CAF50)),
+                   const SizedBox(width: 8),
+                   Expanded(
+                     child: DropdownButtonFormField<String>(
+                       value: _selectedCity,
+                       items: [
+                         const DropdownMenuItem(value: 'Tümü', child: Text('Tüm Şehirler')),
+                         ...trCities81.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                       ],
+                       onChanged: (v) {
+                         if (v == null) return;
+                         setState(() => _selectedCity = v);
+                         _loadListings();
+                       },
+                       decoration: const InputDecoration(
+                         labelText: 'Şehre göre filtrele',
+                         border: OutlineInputBorder(),
+                         isDense: true,
+                       ),
+                     ),
+                   ),
                 ],
               ),
               const SizedBox(height: 12),
 
               Expanded(
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _listingsStream(),
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _listingsFuture,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
                     }
-                    final docs = snapshot.data?.docs ?? [];
+                    if (snapshot.hasError) {
+                       return Center(child: Text('Hata: ${snapshot.error}'));
+                    }
+                    final docs = snapshot.data ?? [];
                     if (docs.isEmpty) {
                       return const Center(child: Text('Sonuç bulunamadı'));
                     }
                     return ListView.builder(
                       itemCount: docs.length,
                       itemBuilder: (context, index) {
-                        final data = docs[index].data();
+                        final data = docs[index];
                         return _buildListingCard(data);
                       },
                     );

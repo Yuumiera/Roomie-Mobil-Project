@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/api_service.dart';
 import '../theme/theme_controller.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -14,7 +15,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  DocumentSnapshot<Map<String, dynamic>>? _userDoc;
+
+  Map<String, dynamic>? _userMap;
   bool _loading = true;
   bool _uploading = false;
   String? _uid;
@@ -28,26 +30,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadUser() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) setState(() => _loading = false);
       return;
     }
     _uid = user.uid;
     try {
-      final snap = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final data = await ApiService.fetchUser(_uid!);
       setState(() {
-        _userDoc = snap;
+        _userMap = data;
         _loading = false;
       });
     } catch (e) {
-      setState(() {
-        _loading = false;
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Profil yüklenemedi: $e')),
-      );
+      if (mounted) setState(() => _loading = false);
+      debugPrint('Profil yüklenemedi: $e');
     }
   }
 
@@ -69,10 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await ref.putFile(File(image.path));
       final url = await ref.getDownloadURL();
 
-      await FirebaseFirestore.instance.collection('users').doc(_uid).update({
-        'photoUrl': url,
-      });
-
+      await ApiService.updateUser(_uid!, {'photoUrl': url});
       await _loadUser();
       
       if (!mounted) return;
@@ -158,7 +150,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildHeader() {
-    final data = _userDoc?.data() ?? {};
+    final data = _userMap ?? {};
     final String name = (data['name'] as String?) ?? '-';
     final String email = (data['email'] as String?) ?? '-';
     final String? photoUrl = data['photoUrl'] as String?;
@@ -191,7 +183,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildInfoCard() {
-    final data = _userDoc?.data() ?? {};
+    final data = _userMap ?? {};
     final String phone = (data['phone'] as String?) ?? '-';
     final String city = (data['city'] as String?) ?? '-';
     final String department = (data['department'] as String?) ?? '-';
@@ -214,7 +206,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildBioCard() {
-    final data = _userDoc?.data() ?? {};
+    final data = _userMap ?? {};
     final String bio = (data['bio'] as String?) ?? 'Açıklama eklenmemiş';
     return _card(
       title: 'Açıklama',
@@ -231,42 +223,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildListingsCard() {
     return _card(
       title: 'İlanlarım',
-      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: (_uid == null)
-            ? null
-            : FirebaseFirestore.instance.collection('listings').where('ownerId', isEqualTo: _uid).snapshots(),
+      child: FutureBuilder<List<Map<String, dynamic>>>(
+        future: (_uid == null) ? Future.value([]) : ApiService.fetchListings(ownerId: _uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) {
-            return const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Henüz ilan yok', style: TextStyle(color: Color(0xFFCD853F))),
-            );
-          }
-          return ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final data = docs[index].data();
-              return ListTile(
-                title: Text((data['title'] as String?) ?? '-'),
-                subtitle: Text((data['price'] as String?) ?? ''),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.pushNamed(context, '/listing-detail', arguments: { 'listing': data });
-                },
-              );
-            },
-          );
+           final docs = snapshot.data ?? [];
+           if (docs.isEmpty) {
+             return const Align(
+               alignment: Alignment.centerLeft,
+               child: Text('Henüz ilan yok', style: TextStyle(color: Color(0xFFCD853F))),
+             );
+           }
+           return ListView.separated(
+             shrinkWrap: true,
+             physics: const NeverScrollableScrollPhysics(),
+             itemCount: docs.length,
+             separatorBuilder: (_, __) => const Divider(height: 1),
+             itemBuilder: (context, index) {
+               final data = docs[index];
+               return ListTile(
+                 title: Text((data['title'] as String?) ?? '-'),
+                 subtitle: Text((data['price'] as String?) ?? ''),
+                 trailing: const Icon(Icons.chevron_right),
+                 onTap: () {
+                   Navigator.pushNamed(context, '/listing-detail', arguments: { 'listing': data });
+                 },
+               );
+             },
+           );
         },
       ),
     );
   }
+
 
 
 

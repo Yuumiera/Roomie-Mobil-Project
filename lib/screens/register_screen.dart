@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/api_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -126,8 +127,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text,
       );
 
-      // Firestore'da kullanıcı bilgilerini kaydet
-      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+      // API üzerinden kullanıcı oluştur
+      await ApiService.createUser({
+        'uid': userCredential.user!.uid,
         'name': _nameSurnameController.text.trim(),
         'email': _emailController.text.trim(),
         'phone': _phoneController.text.trim(),
@@ -137,8 +139,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'department': _departmentController.text.trim(),
         'classYear': _selectedClassYear,
         'hasPet': _hasPet,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
+        // timestamps added by backend
       });
 
       if (!mounted) return;

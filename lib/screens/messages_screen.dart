@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 import 'chat_screen.dart';
 
 class MessagesScreen extends StatefulWidget {
@@ -11,18 +13,41 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
-  Stream<QuerySnapshot<Map<String, dynamic>>>? _conversationsStream;
+  List<Map<String, dynamic>> _conversations = [];
+  bool _loading = true;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final String currentUserId = currentUser?.uid ?? '';
-    if (currentUserId.isNotEmpty) {
-      _conversationsStream = FirebaseFirestore.instance
-          .collection('conversations')
-          .where('members', arrayContains: currentUserId)
-          .snapshots();
+    _loadConversations();
+    _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      _loadConversations(background: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadConversations({bool background = false}) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted && !background) setState(() => _loading = false);
+      return;
+    }
+    try {
+      final convs = await ApiService.fetchConversations(user.uid);
+      if (mounted) {
+        setState(() {
+          _conversations = convs;
+          if (!background) _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted && !background) setState(() => _loading = false);
     }
   }
 
@@ -45,80 +70,53 @@ class _MessagesScreenState extends State<MessagesScreen> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: _conversationsStream,
-        key: ValueKey(currentUserId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Hata: ${snapshot.error}',
-                    style: TextStyle(color: Colors.red.shade700),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            );
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: Text('Henüz konuşma yok.'));
-          }
-          final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) {
-            return const Center(child: Text('Henüz konuşma yok.'));
-          }
-          return ListView.separated(
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final data = docs[index].data();
-              final members = (data['members'] as List<dynamic>).cast<String>();
-              final otherUserId = members.firstWhere((m) => m != currentUserId, orElse: () => '');
-              final lastMessage = data['lastMessage'] as String? ?? '';
-              return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                future: FirebaseFirestore.instance.collection('users').doc(otherUserId).get(),
-                builder: (context, userSnap) {
-                  String displayName = otherUserId;
-                  if (userSnap.hasData && userSnap.data!.exists) {
-                    final data = userSnap.data!.data();
-                    final n = (data?['name'] as String?)?.trim();
-                    if (n != null && n.isNotEmpty) displayName = n;
-                  }
-                  return ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.person)),
-                    title: Text(displayName),
-                    subtitle: Text(
-                      lastMessage.isEmpty ? 'Yeni konuşma' : lastMessage,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ChatScreen(
-                            otherUserId: otherUserId,
-                            otherUserName: displayName,
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _conversations.isEmpty
+              ? const Center(child: Text('Henüz konuşma yok.'))
+              : ListView.separated(
+                  itemCount: _conversations.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final data = _conversations[index];
+                    final members = (data['members'] as List<dynamic>).cast<String>();
+                    final otherUserId = members.firstWhere((m) => m != currentUserId, orElse: () => '');
+                    final lastMessage = data['lastMessage'] as String? ?? '';
+                    
+                    return FutureBuilder<Map<String, dynamic>?>(
+                      future: ApiService.fetchUser(otherUserId),
+                      builder: (context, userSnap) {
+                        String displayName = otherUserId;
+                        if (userSnap.hasData && userSnap.data != null) {
+                          final userData = userSnap.data!;
+                          final n = (userData['name'] as String?)?.trim();
+                          if (n != null && n.isNotEmpty) displayName = n;
+                        }
+                        return ListTile(
+                          leading: const CircleAvatar(child: Icon(Icons.person)),
+                          title: Text(displayName),
+                          subtitle: Text(
+                            lastMessage.isEmpty ? 'Yeni konuşma' : lastMessage,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ChatScreen(
+                                  otherUserId: otherUserId,
+                                  otherUserName: displayName,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
     );
   }
 }

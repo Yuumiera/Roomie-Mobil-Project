@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key, required this.otherUserId, required this.otherUserName});
@@ -16,7 +18,9 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   late final String _currentUserId;
   late final String _conversationId;
-  Stream<QuerySnapshot<Map<String, dynamic>>>? _messagesStream;
+  List<Map<String, dynamic>> _messages = [];
+  bool _loading = true;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -24,14 +28,18 @@ class _ChatScreenState extends State<ChatScreen> {
     final user = FirebaseAuth.instance.currentUser;
     _currentUserId = user?.uid ?? '';
     _conversationId = _buildConversationId(_currentUserId, widget.otherUserId);
-    _messagesStream = FirebaseFirestore.instance
-        .collection('conversations')
-        .doc(_conversationId)
-        .collection('messages')
-        .orderBy('createdAt', descending: true)
-        .limit(200)
-        .snapshots();
-    _ensureConversationExists();
+    _loadMessages();
+    // Poll every 3 seconds
+    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      _loadMessages(background: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _messageController.dispose();
+    super.dispose();
   }
 
   String _buildConversationId(String a, String b) {
@@ -39,17 +47,20 @@ class _ChatScreenState extends State<ChatScreen> {
     return '${sorted[0]}__${sorted[1]}';
   }
 
-  Future<void> _ensureConversationExists() async {
+  Future<void> _loadMessages({bool background = false}) async {
     if (_currentUserId.isEmpty) return;
-    final convoRef = FirebaseFirestore.instance.collection('conversations').doc(_conversationId);
-    final snap = await convoRef.get();
-    if (!snap.exists) {
-      await convoRef.set({
-        'members': [_currentUserId, widget.otherUserId],
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'lastMessage': null,
-      });
+    try {
+      final msgs = await ApiService.fetchMessages(_conversationId);
+      if (mounted) {
+        setState(() {
+          _messages = msgs;
+          if (!background) _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted && !background) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -57,24 +68,20 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _messageController.text.trim();
     if (text.isEmpty || _currentUserId.isEmpty) return;
 
-    final convoRef = FirebaseFirestore.instance.collection('conversations').doc(_conversationId);
-    final messagesRef = convoRef.collection('messages');
-    await messagesRef.add({
-      'senderId': _currentUserId,
-      'text': text,
-      'createdAt': Timestamp.now(),
-    });
-    await convoRef.update({
-      'lastMessage': text,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-    _messageController.clear();
-  }
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
+    try {
+      await ApiService.sendMessage(
+        _conversationId,
+        _currentUserId,
+        text,
+        [_currentUserId, widget.otherUserId]
+      );
+      _messageController.clear();
+      _loadMessages(background: true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+      }
+    }
   }
 
   @override
@@ -89,13 +96,12 @@ class _ChatScreenState extends State<ChatScreen> {
               arguments: {'userId': widget.otherUserId},
             );
           },
-          child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            future: FirebaseFirestore.instance.collection('users').doc(widget.otherUserId).get(),
+          child: FutureBuilder<Map<String, dynamic>?>(
+            future: ApiService.fetchUser(widget.otherUserId),
             builder: (context, snap) {
               String name = widget.otherUserName;
-              if (snap.hasData && snap.data!.exists) {
-                final data = snap.data!.data();
-                final n = (data?['name'] as String?)?.trim();
+              if (snap.hasData && snap.data != null) {
+                final n = (snap.data!['name'] as String?)?.trim();
                 if (n != null && n.isNotEmpty) name = n;
               }
               return Column(
@@ -119,75 +125,46 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _messagesStream,
-              key: ValueKey(_conversationId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Hata: ${snapshot.error}',
-                          style: TextStyle(color: Colors.red.shade700),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: () => setState(() {}),
-                          child: const Text('Yeniden Dene'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const Center(child: Text('Henüz mesaj yok.'));
-                }
-                final docs = snapshot.data?.docs ?? [];
-                if (docs.isEmpty) {
-                  return const Center(child: Text('Henüz mesaj yok.'));
-                }
-                return ListView.builder(
-                  reverse: true,
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final data = docs[index].data();
-                    final isMine = data['senderId'] == _currentUserId;
-                    return Align(
-                      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isMine ? const Color(0xFF4CAF50) : Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _messages.isEmpty
+                    ? const Center(child: Text('Henüz mesaj yok.'))
+                    : ListView.builder(
+                        reverse: true,
+                        itemCount: _messages.length,
+                        itemBuilder: (context, index) {
+                          // Messages are fetched latest first in API (descending).
+                          // ListView is reverse: true, so index 0 is at bottom.
+                          // If API returns desc (newest first), then index 0 is newest.
+                          // So it matches reverse: true.
+                          final data = _messages[index];
+                          final isMine = data['senderId'] == _currentUserId;
+                          return Align(
+                            alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isMine ? const Color(0xFF4CAF50) : Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                data['text'] ?? '',
+                                style: TextStyle(
+                                  color: isMine ? Colors.white : const Color(0xFF8B4513),
+                                ),
+                              ),
                             ),
-                          ],
-                        ),
-                        child: Text(
-                          data['text'] ?? '',
-                          style: TextStyle(
-                            color: isMine ? Colors.white : const Color(0xFF8B4513),
-                          ),
-                        ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                );
-              },
-            ),
           ),
           SafeArea(
             child: Padding(

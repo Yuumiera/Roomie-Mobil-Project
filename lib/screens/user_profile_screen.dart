@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final String userId;
@@ -11,7 +12,7 @@ class UserProfileScreen extends StatefulWidget {
 }
 
 class _UserProfileScreenState extends State<UserProfileScreen> {
-  DocumentSnapshot<Map<String, dynamic>>? _userDoc;
+  Map<String, dynamic>? _userMap;
   bool _loading = true;
 
   @override
@@ -22,21 +23,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _loadUser() async {
     if (widget.userId.isEmpty) {
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) setState(() => _loading = false);
       return;
     }
     try {
-      final snap = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
+      final data = await ApiService.fetchUser(widget.userId);
       setState(() {
-        _userDoc = snap;
+        _userMap = data;
         _loading = false;
       });
     } catch (e) {
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) setState(() => _loading = false);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Kullanıcı profili yüklenemedi: $e')),
@@ -81,14 +78,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Widget _buildHeader() {
-    final data = _userDoc?.data() ?? {};
+    final data = _userMap ?? {};
     final String name = (data['name'] as String?) ?? '-';
     final String email = (data['email'] as String?) ?? '-';
+    final String? photoUrl = data['photoUrl'] as String?;
+
     return Row(
       children: [
-        const CircleAvatar(
+        CircleAvatar(
           radius: 36,
-          child: Icon(Icons.person, size: 36),
+          backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+          child: photoUrl == null ? const Icon(Icons.person, size: 36) : null,
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -106,15 +106,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Widget _buildInfoCard() {
-    final data = _userDoc?.data() ?? {};
+    final data = _userMap ?? {};
     final String city = (data['city'] as String?) ?? '-';
     final String department = (data['department'] as String?) ?? '-';
     final String classYear = (data['classYear'] as String?) ?? '-';
     final String gender = (data['gender'] as String?) ?? '-';
     final String hasPet = (data['hasPet'] == true) ? 'Evet' : (data['hasPet'] == false) ? 'Hayır' : '-';
-    
-    // Phone number might be private, so maybe we shouldn't show it here unless intended.
-    // For now, I'll include it to match the original profile screen, but it's something to consider.
     final String phone = (data['phone'] as String?) ?? '-';
 
     return _card(
@@ -133,7 +130,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Widget _buildBioCard() {
-    final data = _userDoc?.data() ?? {};
+    final data = _userMap ?? {};
     final String bio = (data['bio'] as String?) ?? 'Açıklama eklenmemiş';
     return _card(
       title: 'Açıklama',
@@ -150,38 +147,36 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Widget _buildListingsCard() {
     return _card(
       title: 'İlanları',
-      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: (widget.userId.isEmpty)
-            ? null
-            : FirebaseFirestore.instance.collection('listings').where('ownerId', isEqualTo: widget.userId).snapshots(),
+      child: FutureBuilder<List<Map<String, dynamic>>>(
+        future: (widget.userId.isEmpty) ? Future.value([]) : ApiService.fetchListings(ownerId: widget.userId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          final docs = snapshot.data?.docs ?? [];
+          final docs = snapshot.data ?? [];
           if (docs.isEmpty) {
             return const Align(
               alignment: Alignment.centerLeft,
               child: Text('Henüz ilan yok', style: TextStyle(color: Color(0xFFCD853F))),
             );
           }
-          return ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final data = docs[index].data();
-              return ListTile(
-                title: Text((data['title'] as String?) ?? '-'),
-                subtitle: Text((data['price'] as String?) ?? ''),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.pushNamed(context, '/listing-detail', arguments: { 'listing': data });
-                },
-              );
-            },
-          );
+           return ListView.separated(
+             shrinkWrap: true,
+             physics: const NeverScrollableScrollPhysics(),
+             itemCount: docs.length,
+             separatorBuilder: (_, __) => const Divider(height: 1),
+             itemBuilder: (context, index) {
+               final data = docs[index];
+               return ListTile(
+                 title: Text((data['title'] as String?) ?? '-'),
+                 subtitle: Text((data['price'] as String?) ?? ''),
+                 trailing: const Icon(Icons.chevron_right),
+                 onTap: () {
+                   Navigator.pushNamed(context, '/listing-detail', arguments: { 'listing': data });
+                 },
+               );
+             },
+           );
         },
       ),
     );
