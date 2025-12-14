@@ -1,7 +1,7 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
@@ -47,8 +47,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickAndUploadImage() async {
+    if (_uid == null) return;
+    
     final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50, // Lower quality to reduce size
+      maxWidth: 400,    // Limit dimensions
+      maxHeight: 400,
+    );
     if (image == null) return;
 
     setState(() {
@@ -56,15 +63,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('user_profiles')
-          .child('${_uid}_profile.jpg');
-      
-      await ref.putFile(File(image.path));
-      final url = await ref.getDownloadURL();
+      final bytes = await image.readAsBytes();
+      if (bytes.isEmpty) throw Exception('Seçilen görsel boş/okunamadı.');
 
-      await ApiService.updateUser(_uid!, {'photoUrl': url});
+      // Convert to base64
+      final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      
+      // Check size (Firestore has 1MB document limit)
+      if (base64Image.length > 500000) {
+        throw Exception('Görsel çok büyük. Lütfen daha küçük bir görsel seçin.');
+      }
+
+      debugPrint('Base64 image size: ${base64Image.length} bytes');
+
+      await ApiService.updateUser(_uid!, {'photoUrl': base64Image});
       await _loadUser();
       
       if (!mounted) return;
@@ -72,6 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SnackBar(content: Text('Profil fotoğrafı güncellendi')),
       );
     } catch (e) {
+      debugPrint('Upload error details: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Hata: $e')),
@@ -155,27 +168,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final String email = (data['email'] as String?) ?? '-';
     final String? photoUrl = data['photoUrl'] as String?;
 
-    return Row(
+    return Column(
       children: [
-        GestureDetector(
-          onTap: _pickAndUploadImage,
-          child: CircleAvatar(
-            radius: 36,
-            backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-            child: _uploading
-                ? const CircularProgressIndicator()
-                : (photoUrl == null ? const Icon(Icons.person, size: 36) : null),
+        Stack(
+          children: [
+            GestureDetector(
+              onTap: _pickAndUploadImage,
+              child: CircleAvatar(
+                radius: 50,
+                backgroundColor: Colors.grey.shade200,
+                backgroundImage: photoUrl != null && photoUrl.startsWith('http')
+                    ? NetworkImage(photoUrl)
+                    : null,
+                child: _uploading
+                    ? const CircularProgressIndicator()
+                    : (photoUrl == null || !photoUrl.startsWith('data:image'))
+                        ? const Icon(Icons.person, size: 50, color: Colors.grey)
+                        : ClipOval(
+                            child: Image.memory(
+                              base64Decode(photoUrl.split(',')[1]),
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stack) {
+                                return const Icon(Icons.person, size: 50, color: Colors.grey);
+                              },
+                            ),
+                          ),
+              ),
+            ),
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: GestureDetector(
+                onTap: _pickAndUploadImage,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF8B4513),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        TextButton(
+          onPressed: _pickAndUploadImage,
+          child: const Text(
+            'Profil Fotoğrafını Değiştir',
+            style: TextStyle(color: Color(0xFF8B4513)),
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF8B4513))),
-              const SizedBox(height: 4),
-              Text(email, style: const TextStyle(fontSize: 14, color: Color(0xFFCD853F))),
-            ],
+        const SizedBox(height: 8),
+        Text(
+          name,
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF8B4513),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          email,
+          style: const TextStyle(
+            fontSize: 16,
+            color: Color(0xFFCD853F),
           ),
         ),
       ],

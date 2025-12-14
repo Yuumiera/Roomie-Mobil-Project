@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -87,13 +88,48 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       future: ApiService.fetchUser(otherUserId),
                       builder: (context, userSnap) {
                         String displayName = otherUserId;
+                        String? photoUrl;
                         if (userSnap.hasData && userSnap.data != null) {
                           final userData = userSnap.data!;
                           final n = (userData['name'] as String?)?.trim();
                           if (n != null && n.isNotEmpty) displayName = n;
+                          photoUrl = userData['photoUrl'] as String?;
                         }
+                        
+                        Widget avatarChild;
+                        if (photoUrl != null && photoUrl.startsWith('data:image')) {
+                          avatarChild = ClipOval(
+                            child: Image.memory(
+                              base64Decode(photoUrl.split(',')[1]),
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stack) {
+                                return const Icon(Icons.person);
+                              },
+                            ),
+                          );
+                        } else if (photoUrl != null && photoUrl.startsWith('http')) {
+                          avatarChild = ClipOval(
+                            child: Image.network(
+                              photoUrl,
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stack) {
+                                return const Icon(Icons.person);
+                              },
+                            ),
+                          );
+                        } else {
+                          avatarChild = const Icon(Icons.person);
+                        }
+                        
                         return ListTile(
-                          leading: const CircleAvatar(child: Icon(Icons.person)),
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.grey.shade200,
+                            child: avatarChild,
+                          ),
                           title: Text(displayName),
                           subtitle: Text(
                             lastMessage.isEmpty ? 'Yeni konuşma' : lastMessage,

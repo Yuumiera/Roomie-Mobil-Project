@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
@@ -87,8 +88,23 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       children: [
         CircleAvatar(
           radius: 36,
-          backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-          child: photoUrl == null ? const Icon(Icons.person, size: 36) : null,
+          backgroundColor: Colors.grey.shade200,
+          backgroundImage: photoUrl != null && photoUrl.startsWith('http')
+              ? NetworkImage(photoUrl)
+              : null,
+          child: photoUrl == null || !photoUrl.startsWith('data:image')
+              ? const Icon(Icons.person, size: 36, color: Colors.grey)
+              : ClipOval(
+                  child: Image.memory(
+                    base64Decode(photoUrl.split(',')[1]),
+                    width: 72,
+                    height: 72,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stack) {
+                      return const Icon(Icons.person, size: 36, color: Colors.grey);
+                    },
+                  ),
+                ),
         ),
         const SizedBox(width: 12),
         Expanded(
