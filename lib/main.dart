@@ -17,12 +17,14 @@ import 'screens/settings_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'services/message_notification_service.dart';
 import 'services/unread_service.dart';
+import 'services/language_controller.dart';
 import 'theme/theme_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   await ThemeController.instance.loadTheme();
+  await LanguageController.instance.loadLanguage();
   await MessageNotificationService.instance.initialize(GlobalKey<NavigatorState>());
   UnreadService.instance.initialize();
   runApp(const MyApp());
@@ -51,11 +53,30 @@ class MyApp extends StatelessWidget {
           ),
           darkTheme: ThemeData(
             brightness: Brightness.dark,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF4CAF50),
-              brightness: Brightness.dark,
+            scaffoldBackgroundColor: Colors.black,
+            colorScheme: ColorScheme.dark(
+              primary: const Color(0xFF4CAF50),
+              secondary: const Color(0xFF4CAF50),
+              surface: const Color(0xFF1E1E1E),
+              background: Colors.black,
             ),
             useMaterial3: true,
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            cardTheme: CardTheme(
+              color: const Color(0xFF1E1E1E),
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            textTheme: const TextTheme(
+              bodyLarge: TextStyle(color: Colors.white),
+              bodyMedium: TextStyle(color: Colors.white),
+              bodySmall: TextStyle(color: Colors.white70),
+            ),
+            iconTheme: const IconThemeData(color: Colors.white),
           ),
           home: const LoginScreen(),
           routes: {

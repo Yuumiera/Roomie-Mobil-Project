@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/language_controller.dart';
+import '../l10n/app_localizations.dart';
 import '../utils/cities.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -80,13 +82,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           // timestamps added by backend
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profil güncellendi')));
+          final loc = AppLocalizations.of(LanguageController.instance.languageCode);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.profileUpdated)));
           Navigator.pop(context);
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Kaydetme hatası: $e')));
+        final loc = AppLocalizations.of(LanguageController.instance.languageCode);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${loc.saveError}: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -95,10 +99,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(LanguageController.instance.languageCode);
+    
     return Scaffold(
       backgroundColor: const Color(0xFFFDF6E3),
       appBar: AppBar(
-        title: const Text('Profili Düzenle', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(loc.editProfile, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: const Color(0xFF8B4513),
@@ -118,46 +124,61 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    _buildTextField('Ad Soyad', _name, (v) => _name = v),
+                    _buildTextField(loc.name, _name, (v) => _name = v),
                     const SizedBox(height: 16),
-                    _buildTextField('Hakkımda (Bio)', _bio, (v) => _bio = v, maxLines: 3),
+                    _buildTextField(loc.bio, _bio, (v) => _bio = v, maxLines: 3),
                     const SizedBox(height: 16),
-                    _buildTextField('Telefon', _phone, (v) => _phone = v, keyboardType: TextInputType.phone),
+                    _buildTextField(loc.phone, _phone, (v) => _phone = v, keyboardType: TextInputType.phone),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       value: _city != null && trCities81.contains(_city) ? _city : null,
                       items: trCities81.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                       onChanged: (v) => setState(() => _city = v),
-                      decoration: const InputDecoration(
-                        labelText: 'Şehir',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: loc.city,
+                        border: const OutlineInputBorder(),
                         filled: true,
                         fillColor: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildTextField('Bölüm', _department, (v) => _department = v),
+                    _buildTextField(loc.department, _department, (v) => _department = v),
                     const SizedBox(height: 16),
-                    _buildTextField('Sınıf', _classYear, (v) => _classYear = v),
+                    _buildTextField(loc.classYear, _classYear, (v) => _classYear = v),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       value: _gender,
-                      items: const [
-                        DropdownMenuItem(value: 'Erkek', child: Text('Erkek')),
-                        DropdownMenuItem(value: 'Kadın', child: Text('Kadın')),
-                        DropdownMenuItem(value: 'Diğer', child: Text('Diğer')),
-                      ],
+                      items: () {
+                        // Build unique dropdown items
+                        final List<DropdownMenuItem<String>> items = [
+                          DropdownMenuItem(value: 'Male', child: Text(loc.male)),
+                          DropdownMenuItem(value: 'Female', child: Text(loc.female)),
+                          DropdownMenuItem(value: 'Other', child: Text(loc.other)),
+                        ];
+                        
+                        // If current value is Turkish, add it if not already English equivalent
+                        if (_gender != null && !['Male', 'Female', 'Other'].contains(_gender)) {
+                          String label = _gender!;
+                          if (_gender == 'Erkek') label = loc.male;
+                          else if (_gender == 'Kadın') label = loc.female;
+                          else if (_gender == 'Diğer') label = loc.other;
+                          
+                          items.add(DropdownMenuItem(value: _gender, child: Text(label)));
+                        }
+                        
+                        return items;
+                      }(),
                       onChanged: (v) => setState(() => _gender = v),
-                      decoration: const InputDecoration(
-                        labelText: 'Cinsiyet',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: loc.gender,
+                        border: const OutlineInputBorder(),
                         filled: true,
                         fillColor: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 16),
                     SwitchListTile(
-                      title: const Text('Evcil Hayvanım Var'),
+                      title: Text(loc.hasPet),
                       value: _hasPet ?? false,
                       onChanged: (v) => setState(() => _hasPet = v),
                       tileColor: Colors.white,
@@ -176,7 +197,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                         child: _saving
                             ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : const Text('Kaydet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            : Text(loc.save, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],

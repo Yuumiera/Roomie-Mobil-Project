@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
+import '../services/language_controller.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/theme_controller.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -109,9 +111,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFFDF6E3),
       appBar: AppBar(
-        title: const Text(
-          'Profil',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          AppLocalizations.of(LanguageController.instance.languageCode).profile,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
@@ -153,7 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('Çıkış Yap'),
+                      child: Text(AppLocalizations.of(LanguageController.instance.languageCode).logout),
                     ),
                   ],
                 ),
@@ -254,27 +256,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final String department = (data['department'] as String?) ?? '-';
     final String classYear = (data['classYear'] as String?) ?? '-';
     final String gender = (data['gender'] as String?) ?? '-';
-    final String hasPet = (data['hasPet'] == true) ? 'Evet' : (data['hasPet'] == false) ? 'Hayır' : '-';
+    final loc = AppLocalizations.of(LanguageController.instance.languageCode);
+    final String hasPet = (data['hasPet'] == true) ? (loc.languageCode == 'tr' ? 'Evet' : 'Yes') : (data['hasPet'] == false) ? (loc.languageCode == 'tr' ? 'Hayır' : 'No') : '-';
     return _card(
-      title: 'Bilgiler',
+      title: 'Information',
       child: Column(
         children: [
-          _infoRow('Telefon', phone),
-          _infoRow('Şehir', city),
-          _infoRow('Bölüm', department),
-          _infoRow('Sınıf', classYear),
-          _infoRow('Cinsiyet', gender),
-          _infoRow('Evcil hayvan', hasPet),
+          _infoRow(loc.phone, phone),
+          _infoRow(loc.city, city),
+          _infoRow(loc.department, department),
+          _infoRow(loc.classYear, classYear),
+          _infoRow(loc.gender, gender),
+          _infoRow(loc.hasPet, hasPet),
         ],
       ),
     );
   }
 
   Widget _buildBioCard() {
+    final loc = AppLocalizations.of(LanguageController.instance.languageCode);
     final data = _userMap ?? {};
-    final String bio = (data['bio'] as String?) ?? 'Açıklama eklenmemiş';
+    final String bio = (data['bio'] as String?) ?? (loc.languageCode == 'tr' ? 'Açıklama eklenmemiş' : 'No bio added');
     return _card(
-      title: 'Açıklama',
+      title: loc.bio,
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
@@ -286,8 +290,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildListingsCard() {
+    final loc = AppLocalizations.of(LanguageController.instance.languageCode);
     return _card(
-      title: 'İlanlarım',
+      title: loc.myListings,
       child: FutureBuilder<List<Map<String, dynamic>>>(
         future: (_uid == null) ? Future.value([]) : ApiService.fetchListings(ownerId: _uid),
         builder: (context, snapshot) {
@@ -296,9 +301,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
            final docs = snapshot.data ?? [];
            if (docs.isEmpty) {
-             return const Align(
+             return Align(
                alignment: Alignment.centerLeft,
-               child: Text('Henüz ilan yok', style: TextStyle(color: Color(0xFFCD853F))),
+               child: Text(loc.languageCode == 'tr' ? 'Henüz ilan yok' : 'No listings yet', style: const TextStyle(color: Color(0xFFCD853F))),
              );
            }
            return ListView.separated(
