@@ -16,6 +16,7 @@ import 'screens/user_profile_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'services/message_notification_service.dart';
+import 'services/unread_service.dart';
 import 'theme/theme_controller.dart';
 
 void main() async {
@@ -23,6 +24,7 @@ void main() async {
   await Firebase.initializeApp();
   await ThemeController.instance.loadTheme();
   await MessageNotificationService.instance.initialize(GlobalKey<NavigatorState>());
+  UnreadService.instance.initialize();
   runApp(const MyApp());
 }
 

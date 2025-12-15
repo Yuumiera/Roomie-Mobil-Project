@@ -29,6 +29,14 @@ class _ChatScreenState extends State<ChatScreen> {
     _currentUserId = user?.uid ?? '';
     _conversationId = _buildConversationId(_currentUserId, widget.otherUserId);
     _loadMessages();
+    
+    // Mark conversation as read
+    if (_currentUserId.isNotEmpty) {
+      ApiService.markConversationAsRead(_conversationId, _currentUserId).catchError((e) {
+        debugPrint('Error marking as read: $e');
+      });
+    }
+    
     // Poll every 3 seconds
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
       _loadMessages(background: true);

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../models/chat_model.dart';
 
 class ApiService {
   // Use 10.0.2.2 for Android Emulator, localhost for iOS/Web
@@ -109,13 +110,13 @@ class ApiService {
 
   // --- MESSAGING ---
 
-  static Future<List<Map<String, dynamic>>> fetchConversations(String userId) async {
+  static Future<List<Chat>> fetchConversations(String userId) async {
     try {
       final uri = Uri.parse('$baseUrl/api/conversations').replace(queryParameters: {'userId': userId});
       final response = await http.get(uri);
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        return data.cast<Map<String, dynamic>>();
+        return data.map((json) => Chat.fromJson(json)).toList();
       } else {
         throw Exception('Failed to load conversations');
       }
@@ -160,6 +161,23 @@ class ApiService {
       }
     } catch (e) {
       debugPrint('Error sending message: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> markConversationAsRead(String conversationId, String userId) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/conversations/$conversationId/mark-read');
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'userId': userId}),
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Failed to mark as read');
+      }
+    } catch (e) {
+      debugPrint('Error marking as read: $e');
       rethrow;
     }
   }

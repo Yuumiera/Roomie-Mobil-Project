@@ -4,6 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../models/chat_model.dart';
+import '../services/unread_service.dart';
+import '../services/local_unread_tracker.dart';
 import 'chat_screen.dart';
 
 class MessagesScreen extends StatefulWidget {
@@ -14,7 +17,7 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
-  List<Map<String, dynamic>> _conversations = [];
+  List<Chat> _conversations = [];
   bool _loading = true;
   Timer? _timer;
 
@@ -79,10 +82,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   itemCount: _conversations.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (context, index) {
-                    final data = _conversations[index];
-                    final members = (data['members'] as List<dynamic>).cast<String>();
-                    final otherUserId = members.firstWhere((m) => m != currentUserId, orElse: () => '');
-                    final lastMessage = data['lastMessage'] as String? ?? '';
+                    final chat = _conversations[index];
+                    final otherUserId = chat.members.firstWhere((m) => m != currentUserId, orElse: () => '');
                     
                     return FutureBuilder<Map<String, dynamic>?>(
                       future: ApiService.fetchUser(otherUserId),
@@ -96,6 +97,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           photoUrl = userData['photoUrl'] as String?;
                         }
                         
+                        // Get unread count for current user
+                        final unreadCount = chat.unreadCount[currentUserId] ?? 0;
+                        
                         Widget avatarChild;
                         if (photoUrl != null && photoUrl.startsWith('data:image')) {
                           avatarChild = ClipOval(
@@ -104,9 +108,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                               width: 40,
                               height: 40,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stack) {
-                                return const Icon(Icons.person);
-                              },
+                              errorBuilder: (context, error, stack) => const Icon(Icons.person),
                             ),
                           );
                         } else if (photoUrl != null && photoUrl.startsWith('http')) {
@@ -116,29 +118,71 @@ class _MessagesScreenState extends State<MessagesScreen> {
                               width: 40,
                               height: 40,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stack) {
-                                return const Icon(Icons.person);
-                              },
+                              errorBuilder: (context, error, stack) => const Icon(Icons.person),
                             ),
                           );
                         } else {
                           avatarChild = const Icon(Icons.person);
                         }
                         
-                        return ListTile(
+                        // Get unread status using LocalUnreadTracker
+                        return FutureBuilder<bool>(
+                          future: LocalUnreadTracker.instance.hasUnread(
+                            chat.id,
+                            chat.lastMessageTime,
+                            chat.lastMessageSenderId,
+                            currentUserId,
+                          ),
+                          builder: (context, unreadSnap) {
+                            final hasUnread = unreadSnap.data ?? false;
+                            
+                            return ListTile(
                           leading: CircleAvatar(
                             backgroundColor: Colors.grey.shade200,
                             child: avatarChild,
                           ),
-                          title: Text(displayName),
+                          title: Text(
+                            displayName,
+                            style: TextStyle(
+                              fontWeight: hasUnread ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
                           subtitle: Text(
-                            lastMessage.isEmpty ? 'Yeni konuşma' : lastMessage,
+                            chat.lastMessage.isEmpty ? 'Yeni konuşma' : chat.lastMessage,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
+                            ),
                           ),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () {
-                            Navigator.push(
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (hasUnread)
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF4CAF50),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Text(
+                                    '1',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.chevron_right),
+                            ],
+                          ),
+                          onTap: () async {
+                            // Mark as seen before navigating
+                            await LocalUnreadTracker.instance.markConversationAsSeen(chat.id);
+                            
+                            await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => ChatScreen(
@@ -147,6 +191,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
                                 ),
                               ),
                             );
+                            // Refresh unread counts after returning
+                            _loadConversations(background: true);
+                            UnreadService.instance.refresh();
+                          },
+                        );
                           },
                         );
                       },

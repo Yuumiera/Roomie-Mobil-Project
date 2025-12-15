@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/unread_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -132,31 +133,46 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.message_outlined),
-            activeIcon: Icon(Icons.message),
-            label: 'Messages',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: const Color(0xFF8B4513),
-        unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
-        backgroundColor: Colors.white,
-        elevation: 8,
-        type: BottomNavigationBarType.fixed,
+      bottomNavigationBar: ListenableBuilder(
+        listenable: UnreadService.instance,
+        builder: (context, _) {
+          final unreadCount = UnreadService.instance.totalUnread;
+          
+          return BottomNavigationBar(
+            items: <BottomNavigationBarItem>[
+              BottomNavigationBarItem(
+                icon: Badge(
+                  label: unreadCount > 0 ? Text('$unreadCount') : null,
+                  isLabelVisible: unreadCount > 0,
+                  child: const Icon(Icons.message_outlined),
+                ),
+                activeIcon: Badge(
+                  label: unreadCount > 0 ? Text('$unreadCount') : null,
+                  isLabelVisible: unreadCount > 0,
+                  child: const Icon(Icons.message),
+                ),
+                label: 'Messages',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined),
+                activeIcon: Icon(Icons.home),
+                label: 'Home',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.person_outline),
+                activeIcon: Icon(Icons.person),
+                label: 'Profile',
+              ),
+            ],
+            currentIndex: _selectedIndex,
+            selectedItemColor: const Color(0xFF8B4513),
+            unselectedItemColor: Colors.grey,
+            onTap: _onItemTapped,
+            backgroundColor: Colors.white,
+            elevation: 8,
+            type: BottomNavigationBarType.fixed,
+          );
+        },
       ),
     );
   }

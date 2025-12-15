@@ -191,48 +191,35 @@ app.post('/api/conversations/:id/messages', async (req, res) => {
         const conversationId = req.params.id;
         const { senderId, text } = req.body;
 
-        // Ensure conversation exists/update it
-        // In a real app we might check if members exist etc.
-        // For now we assume conversation doc exists or we update it blindly if it does.
-        // Actually, simple way: add message, then update conversation 'lastMessage'
-
         const convoRef = db.collection('conversations').doc(conversationId);
 
         // Check if exists, if not create (for first message flow)
         const convoDoc = await convoRef.get();
-        if (!convoDoc.exists) {
-            // Members should be passed in body ideally if creating new, but assuming ID structure string logic
-            // We will rely on client to create conversation via a different endpoint or handle it here if members provided.
-            // For simplicity: Update only if exists. Client side logic ensures creation usually.
-            // Actually, let's allow passing members in body to create if missing.
-            if (req.body.members) {
-                await convoRef.set({
-                    members: req.body.members,
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    lastMessage: text
-                });
-            }
+        let members = [];
+
+    });
+
+// POST /api/conversations/:id/mark-read
+// Mark conversation as read for a user
+app.post('/api/conversations/:id/mark-read', async (req, res) => {
+    try {
+        const conversationId = req.params.id;
+        const { userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'userId is required' });
         }
 
-        const now = admin.firestore.Timestamp.now(); // or serverTimestamp
-        await convoRef.collection('messages').add({
-            senderId,
-            text,
-            createdAt: now
-        });
+        const convoRef = db.collection('conversations').doc(conversationId);
+        // Use set with merge to avoid errors if unreadCount map is missing
+        await convoRef.set({
+            [`unreadCount.${userId}`]: 0
+        }, { merge: true });
 
-        await convoRef.update({
-            lastMessage: text,
-            lastMessageSenderId: senderId,
-            lastMessageAt: now,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        res.status(201).json({ message: 'Message sent' });
+        res.json({ message: 'Marked as read' });
     } catch (error) {
-        console.error('Error sending message:', error);
-        res.status(500).json({ error: 'Failed to send message' });
+        console.error('Error marking as read:', error);
+        res.status(500).json({ error: 'Failed to mark as read' });
     }
 });
 
