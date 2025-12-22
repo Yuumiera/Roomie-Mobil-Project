@@ -61,12 +61,118 @@ app.post('/api/listings', async (req, res) => {
             createdAt: now,
             updatedAt: now
         });
+
+        // Premium Notification Trigger
+        // Find matching premium users with active subscriptions
+        try {
+            const category = data.category;
+            const city = data.city;
+
+            let subscriptionsQuery = db.collection('alert_subscriptions')
+                .where('isActive', '==', true)
+                .where('category', '==', category);
+
+            if (city) {
+                subscriptionsQuery = subscriptionsQuery.where('city', '==', city);
+            }
+
+            const subscriptionsSnapshot = await subscriptionsQuery.get();
+
+            // Check if subscriptions are still valid (not expired)
+            const validSubscriptions = [];
+            subscriptionsSnapshot.forEach(doc => {
+                const sub = doc.data();
+                const expiresAt = sub.expiresAt;
+
+                // Convert expiresAt to Date
+                let expiryDate;
+                if (typeof expiresAt === 'string') {
+                    expiryDate = new Date(expiresAt);
+                } else if (expiresAt && expiresAt.toDate) {
+                    expiryDate = expiresAt.toDate();
+                }
+
+                if (expiryDate && expiryDate > new Date()) {
+                    validSubscriptions.push({ id: doc.id, ...sub });
+                }
+            });
+
+            // For each valid subscription, send notification
+            for (const subscription of validSubscriptions) {
+                const userId = subscription.userId;
+
+                // Check if user is premium
+                const userDoc = await db.collection('users').doc(userId).get();
+                const userData = userDoc.data();
+
+                if (userData && userData.isPremium === true) {
+                    // TODO: Send actual push notification using FCM
+                    // For now, we'll just log it
+                    console.log(`📬 Premium notification for user ${userId}:`, {
+                        title: 'Yeni İlan!',
+                        body: `${data.title} - ${data.city}`,
+                        listingId: docRef.id,
+                        category: data.category
+                    });
+
+                    // You can add FCM notification here:
+                    // await admin.messaging().send({
+                    //     token: userData.fcmToken,
+                    //     notification: {
+                    //         title: 'Yeni İlan!',
+                    //         body: `${data.title} - ${data.city}`
+                    //     },
+                    //     data: {
+                    //         listingId: docRef.id,
+                    //         category: data.category
+                    //     }
+                    // });
+                }
+            }
+        } catch (notifError) {
+            console.error('Error sending notifications:', notifError);
+            // Don't fail the listing creation if notifications fail
+        }
+
         res.status(201).json({ id: docRef.id, message: 'Listing created successfully' });
     } catch (error) {
         console.error('Error creating listing:', error);
         res.status(500).json({ error: 'Failed to create listing' });
     }
 });
+
+// PUT /api/listings/:id
+// Update an existing listing
+app.put('/api/listings/:id', async (req, res) => {
+    try {
+        const listingId = req.params.id;
+        const data = req.body;
+        const now = admin.firestore.FieldValue.serverTimestamp();
+
+        await db.collection('listings').doc(listingId).update({
+            ...data,
+            updatedAt: now
+        });
+        res.json({ message: 'Listing updated successfully' });
+    } catch (error) {
+        console.error('Error updating listing:', error);
+        res.status(500).json({ error: 'Failed to update listing' });
+    }
+});
+
+// DELETE /api/listings/:id
+// Delete a listing
+app.delete('/api/listings/:id', async (req, res) => {
+    try {
+        const listingId = req.params.id;
+        await db.collection('listings').doc(listingId).delete();
+        res.json({ message: 'Listing deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting listing:', error);
+        res.status(500).json({ error: 'Failed to delete listing' });
+    }
+});
+
 
 // --- USERS ---
 
@@ -189,7 +295,7 @@ app.get('/api/conversations/:id/messages', async (req, res) => {
 app.post('/api/conversations/:id/messages', async (req, res) => {
     try {
         const conversationId = req.params.id;
-        const { senderId, text } = req.body;
+        const { senderId, text, members: providedMembers } = req.body;
 
         const convoRef = db.collection('conversations').doc(conversationId);
 
@@ -197,7 +303,50 @@ app.post('/api/conversations/:id/messages', async (req, res) => {
         const convoDoc = await convoRef.get();
         let members = [];
 
-    });
+        if (!convoDoc.exists && providedMembers) {
+            // First message, create conversation
+            members = providedMembers;
+            const now = admin.firestore.FieldValue.serverTimestamp();
+            await convoRef.set({
+                members,
+                createdAt: now,
+                updatedAt: now,
+                lastMessage: text,
+                unreadCount: {}
+            });
+        } else if (convoDoc.exists) {
+            members = convoDoc.data().members || [];
+        }
+
+        // Add message
+        const now = admin.firestore.FieldValue.serverTimestamp();
+        await convoRef.collection('messages').add({
+            senderId,
+            text,
+            createdAt: now
+        });
+
+        // Update conversation
+        const updateData = {
+            updatedAt: now,
+            lastMessage: text
+        };
+
+        // Increment unread count for other members
+        members.forEach(memberId => {
+            if (memberId !== senderId) {
+                updateData[`unreadCount.${memberId}`] = admin.firestore.FieldValue.increment(1);
+            }
+        });
+
+        await convoRef.update(updateData);
+
+        res.status(201).json({ message: 'Message sent successfully' });
+    } catch (error) {
+        console.error('Error sending message:', error);
+        res.status(500).json({ error: 'Failed to send message' });
+    }
+});
 
 // POST /api/conversations/:id/mark-read
 // Mark conversation as read for a user

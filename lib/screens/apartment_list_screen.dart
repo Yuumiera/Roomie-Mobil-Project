@@ -55,36 +55,38 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
   }
 
   void _addNewListing() {
-    _showAddListingDialog();
+    _showListingDialog();
   }
 
-  void _showAddListingDialog() {
+  void _showListingDialog({Map<String, dynamic>? existingListing}) {
+    final bool isEditing = existingListing != null;
+    final String? listingId = existingListing?['id'] as String?;
     final formKey = GlobalKey<FormState>();
-    String title = '';
-    String description = '';
-    String price = '';
-    String location = '';
-    String city = _selectedCity == 'Tümü' ? 'İstanbul' : _selectedCity;
-    String imageUrl = '';
-    bool petsAllowed = false;
-    final List<String> images = [];
-    String ownerName = '';
-    final String ownerId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    String title = existingListing?['title'] as String? ?? '';
+    String description = existingListing?['description'] as String? ?? '';
+    String price = (existingListing?['price'] as String? ?? '').replaceAll('₺', '').trim();
+    String location = existingListing?['location'] as String? ?? '';
+    String city = existingListing?['city'] as String? ?? (_selectedCity == 'Tümü' ? 'İstanbul' : _selectedCity);
+    String imageUrl = existingListing?['imageUrl'] as String? ?? '';
+    bool petsAllowed = existingListing?['petsAllowed'] as bool? ?? false;
+    final List<String> images = List<String>.from(existingListing?['images'] as List? ?? []);
+    String ownerName = existingListing?['ownerName'] as String? ?? '';
+    final String ownerId = existingListing?['ownerId'] as String? ?? FirebaseAuth.instance.currentUser?.uid ?? '';
     // Apartment/House common features
-    String roomCount = '';
-    bool hasBalcony = false;
-    String balconyCount = '';
-    String buildingFloors = '';
-    String apartmentFloor = '';
-    String bathrooms = '';
-    String buildingAge = '';
-    String squareMeters = '';
-    String heating = '';
-    bool hasElevator = false;
-    bool inComplex = false;
-    bool hasDues = false;
-    String duesAmount = '';
-    String addressDirections = '';
+    String roomCount = existingListing?['roomCount'] as String? ?? '';
+    bool hasBalcony = existingListing?['hasBalcony'] as bool? ?? false;
+    String balconyCount = existingListing?['balconyCount'] as String? ?? '';
+    String buildingFloors = existingListing?['buildingFloors'] as String? ?? '';
+    String apartmentFloor = existingListing?['apartmentFloor'] as String? ?? '';
+    String bathrooms = existingListing?['bathrooms'] as String? ?? '';
+    String buildingAge = existingListing?['buildingAge'] as String? ?? '';
+    String squareMeters = existingListing?['squareMeters'] as String? ?? '';
+    String heating = existingListing?['heating'] as String? ?? '';
+    bool hasElevator = existingListing?['hasElevator'] as bool? ?? false;
+    bool inComplex = existingListing?['inComplex'] as bool? ?? false;
+    bool hasDues = existingListing?['hasDues'] as bool? ?? false;
+    String duesAmount = existingListing?['duesAmount'] as String? ?? '';
+    String addressDirections = existingListing?['addressDirections'] as String? ?? '';
 
     showDialog(
       context: context,
@@ -92,7 +94,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-          title: const Text('Yeni İlan Ekle'),
+          title: Text(isEditing ? 'İlanı Düzenle' : 'Yeni İlan Ekle'),
           content: SingleChildScrollView(
             child: Form(
               key: formKey,
@@ -100,21 +102,25 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextFormField(
+                    initialValue: title,
                     decoration: const InputDecoration(labelText: 'Başlık'),
                     onSaved: (v) => title = v?.trim() ?? '',
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Gerekli' : null,
                   ),
                   TextFormField(
+                    initialValue: ownerName,
                     decoration: const InputDecoration(labelText: 'İlan Sahibi Adı'),
                     onSaved: (v) => ownerName = v?.trim() ?? '',
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Gerekli' : null,
                   ),
                   TextFormField(
+                    initialValue: description,
                     decoration: const InputDecoration(labelText: 'Açıklama'),
                     onSaved: (v) => description = v?.trim() ?? '',
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Gerekli' : null,
                   ),
                   TextFormField(
+                    initialValue: price,
                     decoration: const InputDecoration(labelText: 'Fiyat (₺)'),
                     onSaved: (v) => price = v?.trim() ?? '',
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Gerekli' : null,
@@ -169,17 +175,46 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: images
-                          .map((p) => ClipRRect(
-                                borderRadius: BorderRadius.circular(6),
-                                child: Image.file(
-                                  File(p),
-                                  width: 56,
-                                  height: 56,
-                                  fit: BoxFit.cover,
+                      children: images.asMap().entries.map((entry) {
+                        final int index = entry.key;
+                        final String path = entry.value;
+                        return Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.file(
+                                File(path),
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: InkWell(
+                                onTap: () {
+                                  setDialogState(() {
+                                    images.removeAt(index);
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
                                 ),
-                              ))
-                          .toList(),
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
                     ),
                   const SizedBox(height: 8),
                   SwitchListTile(
@@ -290,7 +325,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                   }
                 } catch (_) {}
 
-                await ApiService.createListing({
+                final listingData = {
                   'title': title,
                   'description': description,
                   'price': '₺$price',
@@ -317,12 +352,19 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                   'duesAmount': duesAmount,
                   'addressDirections': addressDirections,
                   // timestamps added by backend
-                });
+                };
+
+                if (isEditing && listingId != null) {
+                  await ApiService.updateListing(listingId, listingData);
+                } else {
+                  await ApiService.createListing(listingData);
+                }
+                
                 Navigator.pop(context);
                 // Refresh the list through API
                 _loadListings();
               },
-              child: const Text('Ekle'),
+              child: Text(isEditing ? 'Güncelle' : 'Ekle'),
             ),
           ],
             );
@@ -454,6 +496,11 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
   }
 
   Widget _buildListingCard(Map<String, dynamic> listing) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final ownerId = listing['ownerId'] as String?;
+    final isOwner = currentUserId != null && currentUserId == ownerId;
+    final listingId = listing['id'] as String?;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -539,11 +586,41 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: const Color(0xFF8B4513),
-                ),
+                // Show edit/delete for owner, arrow for others
+                if (isOwner && listingId != null)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Color(0xFF8B4513), size: 20),
+                        onPressed: () {
+                          _showListingDialog(existingListing: listing);
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                        onPressed: () async {
+                          try {
+                            await ApiService.deleteListing(listingId);
+                            _loadListings(); // Refresh
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('İlan silindi')),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Hata: $e')),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  )
+                else
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: const Color(0xFF8B4513),
+                  ),
               ],
             ),
           ),

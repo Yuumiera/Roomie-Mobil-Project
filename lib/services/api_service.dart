@@ -6,7 +6,10 @@ import '../models/chat_model.dart';
 
 class ApiService {
   // Use 10.0.2.2 for Android Emulator, localhost for iOS/Web
+  // Use 10.0.2.2 for Android Emulator, localhost for iOS/Web
   static String get baseUrl {
+    // Local Development (Android Emulator)
+    // return 'http://10.0.2.2:3000';
     // Production URL (Render.com)
     return 'https://roomie-mobil-project.onrender.com';
   }
@@ -51,6 +54,43 @@ class ApiService {
       }
     } catch (e) {
       debugPrint('Error creating listing: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> updateListing(String listingId, Map<String, dynamic> data) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/listings/$listingId');
+      final response = await http.put(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(data),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update listing: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error updating listing: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> deleteListing(String listingId) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/listings/$listingId');
+      debugPrint('🌐 DELETE URL: $uri');
+      
+      final response = await http.delete(uri);
+      debugPrint('📡 DELETE Response: ${response.statusCode}');
+
+      if (response.statusCode != 200) {
+        debugPrint('❌ DELETE failed: ${response.body}');
+        throw Exception('Failed to delete listing: ${response.statusCode}');
+      }
+      debugPrint('✅ DELETE successful');
+    } catch (e) {
+      debugPrint('💥 DELETE exception: $e');
       rethrow;
     }
   }

@@ -44,6 +44,23 @@ class AppLocalizations {
   String get reviews => languageCode == 'tr' ? 'Yorumlar' : 'Reviews';
   String get posts => languageCode == 'tr' ? 'Gönderiler' : 'Posts';
   
+  // My Alerts (Premium Feature)
+  String get myAlerts => languageCode == 'tr' ? 'Beklediğim İlanlar' : 'My Alerts';
+  String get activeAlerts => languageCode == 'tr' ? 'Aktif Bildirim' : 'Active Alerts';
+  String get noActiveAlerts => languageCode == 'tr' ? 'Aktif bildirim yok' : 'No active alerts';
+  String get expiresAt => languageCode == 'tr' ? 'Son Kullanma' : 'Expires At';
+  
+  // Listing CRUD
+  String get editListing => languageCode == 'tr' ? 'İlanı Düzenle' : 'Edit Listing';
+  String get deleteListing => languageCode == 'tr' ? 'İlanı Sil' : 'Delete Listing';
+  String get deleteConfirmTitle => languageCode == 'tr' ? 'Emin misiniz?' : 'Are you sure?';
+  String get deleteConfirmMessage => languageCode == 'tr' ? 'Bu ilanı silmek istediğinize emin misiniz?' : 'Are you sure you want to delete this listing?';
+  String get cancel => languageCode == 'tr' ? 'İptal' : 'Cancel';
+  String get delete => languageCode == 'tr' ? 'Sil' : 'Delete';
+  String get listingDeleted => languageCode == 'tr' ? 'İlan silindi' : 'Listing deleted';
+  String get listingUpdated => languageCode == 'tr' ? 'İlan güncellendi' : 'Listing updated';
+  String get update => languageCode == 'tr' ? 'Güncelle' : 'Update';
+  
   // Language Selection
   String get selectLanguage => languageCode == 'tr' ? 'Dil Seçin' : 'Select Language';
   String get turkish => languageCode == 'tr' ? 'Türkçe' : 'Turkish';

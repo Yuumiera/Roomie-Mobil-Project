@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
+import '../services/alert_subscription_service.dart';
 import '../services/language_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/theme_controller.dart';
@@ -22,6 +23,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
   bool _uploading = false;
   String? _uid;
+  bool _isPremium = false;
+  int _listingsRefreshKey = 0;
+  int _notificationCount = 0;
 
   @override
   void initState() {
@@ -40,11 +44,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final data = await ApiService.fetchUser(_uid!);
       setState(() {
         _userMap = data;
+        _isPremium = data?['isPremium'] == true;
         _loading = false;
       });
+      
+      // Load notification count if premium
+      if (_isPremium) {
+        _loadNotificationCount();
+      }
     } catch (e) {
       if (mounted) setState(() => _loading = false);
       debugPrint('Profil yüklenemedi: $e');
+    }
+  }
+
+  Future<void> _loadNotificationCount() async {
+    if (_uid == null) return;
+    try {
+      final notifications = await FirebaseFirestore.instance
+          .collection('notifications')
+          .where('userId', isEqualTo: _uid)
+          .where('isRead', isEqualTo: false)
+          .get();
+      
+      if (mounted) {
+        setState(() {
+          _notificationCount = notifications.docs.length;
+        });
+      }
+    } catch (e) {
+      debugPrint('Bildirim sayısı yüklenemedi: $e');
     }
   }
 
@@ -106,6 +135,253 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
   }
 
+  Future<void> _deleteListing(String listingId, String title) async {
+    final loc = AppLocalizations.of(LanguageController.instance.languageCode);
+
+    debugPrint('🗑️ Attempting to delete listing: $listingId');
+    
+    try {
+      await ApiService.deleteListing(listingId);
+      debugPrint('✅ Delete successful for: $listingId');
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _listingsRefreshKey++;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(loc.listingDeleted)),
+      );
+    } catch (e) {
+      debugPrint('❌ Delete error for $listingId: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Hata: $e')),
+      );
+    }
+  }
+
+  void _showEditListingDialog(Map<String, dynamic> listing) {
+    final formKey = GlobalKey<FormState>();
+    final listingId = listing['id'] as String;
+    
+    // All fields
+    String title = listing['title'] as String? ?? '';
+    String description = listing['description'] as String? ?? '';
+    String price = (listing['price'] as String? ?? '').replaceAll('₺', '').trim();
+    String location = listing['location'] as String? ?? '';
+    String ownerName = listing['ownerName'] as String? ?? '';
+    bool petsAllowed = listing['petsAllowed'] as bool? ?? false;
+    
+    // Apartment specific
+    String roomCount = listing['roomCount'] as String? ?? '';
+    bool hasBalcony = listing['hasBalcony'] as bool? ?? false;
+    String balconyCount = listing['balconyCount'] as String? ?? '';
+    String buildingFloors = listing['buildingFloors'] as String? ?? '';
+    String apartmentFloor = listing['apartmentFloor'] as String? ?? '';
+    String bathrooms = listing['bathrooms'] as String? ?? '';
+    String buildingAge = listing['buildingAge'] as String? ?? '';
+    String squareMeters = listing['squareMeters'] as String? ?? '';
+    String heating = listing['heating'] as String? ?? '';
+    bool hasElevator = listing['hasElevator'] as bool? ?? false;
+    bool inComplex = listing['inComplex'] as bool? ?? false;
+    bool hasDues = listing['hasDues'] as bool? ?? false;
+    String duesAmount = listing['duesAmount'] as String? ?? '';
+    String addressDirections = listing['addressDirections'] as String? ?? '';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('İlanı Düzenle'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    initialValue: title,
+                    decoration: const InputDecoration(labelText: 'Başlık'),
+                    onSaved: (v) => title = v?.trim() ?? '',
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Gerekli' : null,
+                  ),
+                  TextFormField(
+                    initialValue: ownerName,
+                    decoration: const InputDecoration(labelText: 'İlan Sahibi Adı'),
+                    onSaved: (v) => ownerName = v?.trim() ?? '',
+                  ),
+                  TextFormField(
+                    initialValue: description,
+                    decoration: const InputDecoration(labelText: 'Açıklama'),
+                    maxLines: 3,
+                    onSaved: (v) => description = v?.trim() ?? '',
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Gerekli' : null,
+                  ),
+                  TextFormField(
+                    initialValue: price,
+                    decoration: const InputDecoration(labelText: 'Fiyat (₺)'),
+                    onSaved: (v) => price = v?.trim() ?? '',
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Gerekli' : null,
+                  ),
+                  TextFormField(
+                    initialValue: location,
+                    decoration: const InputDecoration(labelText: 'Konum'),
+                    onSaved: (v) => location = v?.trim() ?? '',
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    value: petsAllowed,
+                    onChanged: (v) => setDialogState(() => petsAllowed = v),
+                    title: const Text('Evcil hayvan var mı?'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  TextFormField(
+                    initialValue: roomCount,
+                    decoration: const InputDecoration(labelText: 'Oda sayısı (örn. 2+1)'),
+                    onSaved: (v) => roomCount = v?.trim() ?? '',
+                  ),
+                  SwitchListTile(
+                    value: hasBalcony,
+                    onChanged: (v) => setDialogState(() => hasBalcony = v),
+                    title: const Text('Balkon var mı?'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  TextFormField(
+                    initialValue: balconyCount,
+                    decoration: const InputDecoration(labelText: 'Balkon sayısı'),
+                    keyboardType: TextInputType.number,
+                    onSaved: (v) => balconyCount = v?.trim() ?? '',
+                  ),
+                  TextFormField(
+                    initialValue: buildingFloors,
+                    decoration: const InputDecoration(labelText: 'Bina kaç katlı?'),
+                    keyboardType: TextInputType.number,
+                    onSaved: (v) => buildingFloors = v?.trim() ?? '',
+                  ),
+                  TextFormField(
+                    initialValue: apartmentFloor,
+                    decoration: const InputDecoration(labelText: 'Daire kaçıncı katta?'),
+                    keyboardType: TextInputType.number,
+                    onSaved: (v) => apartmentFloor = v?.trim() ?? '',
+                  ),
+                  TextFormField(
+                    initialValue: bathrooms,
+                    decoration: const InputDecoration(labelText: 'Kaç tuvalet/banyo?'),
+                    onSaved: (v) => bathrooms = v?.trim() ?? '',
+                  ),
+                  TextFormField(
+                    initialValue: buildingAge,
+                    decoration: const InputDecoration(labelText: 'Bina yaşı'),
+                    keyboardType: TextInputType.number,
+                    onSaved: (v) => buildingAge = v?.trim() ?? '',
+                  ),
+                  TextFormField(
+                    initialValue: squareMeters,
+                    decoration: const InputDecoration(labelText: 'm²'),
+                    keyboardType: TextInputType.number,
+                    onSaved: (v) => squareMeters = v?.trim() ?? '',
+                  ),
+                  TextFormField(
+                    initialValue: heating,
+                    decoration: const InputDecoration(labelText: 'Isıtma'),
+                    onSaved: (v) => heating = v?.trim() ?? '',
+                  ),
+                  SwitchListTile(
+                    value: hasElevator,
+                    onChanged: (v) => setDialogState(() => hasElevator = v),
+                    title: const Text('Asansör var mı?'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  SwitchListTile(
+                    value: inComplex,
+                    onChanged: (v) => setDialogState(() => inComplex = v),
+                    title: const Text('Site içerisinde mi?'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  SwitchListTile(
+                    value: hasDues,
+                    onChanged: (v) => setDialogState(() => hasDues = v),
+                    title: const Text('Aidat var mı?'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  TextFormField(
+                    initialValue: duesAmount,
+                    decoration: const InputDecoration(labelText: 'Aidat (TL)'),
+                    keyboardType: TextInputType.number,
+                    onSaved: (v) => duesAmount = v?.trim() ?? '',
+                  ),
+                  TextFormField(
+                    initialValue: addressDirections,
+                    decoration: const InputDecoration(labelText: 'Adres tarifi'),
+                    maxLines: 2,
+                    onSaved: (v) => addressDirections = v?.trim() ?? '',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(AppLocalizations.of(LanguageController.instance.languageCode).cancel),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+                formKey.currentState!.save();
+
+                try {
+                  await ApiService.updateListing(listingId, {
+                    'title': title,
+                    'description': description,
+                    'price': '₺$price',
+                    'location': location,
+                    'ownerName': ownerName,
+                    'petsAllowed': petsAllowed,
+                    'roomCount': roomCount,
+                    'hasBalcony': hasBalcony,
+                    'balconyCount': balconyCount,
+                    'buildingFloors': buildingFloors,
+                    'apartmentFloor': apartmentFloor,
+                    'bathrooms': bathrooms,
+                    'buildingAge': buildingAge,
+                    'squareMeters': squareMeters,
+                    'heating': heating,
+                    'hasElevator': hasElevator,
+                    'inComplex': inComplex,
+                    'hasDues': hasDues,
+                    'duesAmount': duesAmount,
+                    'addressDirections': addressDirections,
+                  });
+                  
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                  
+                  setState(() {
+                    _listingsRefreshKey++;
+                  });
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(AppLocalizations.of(LanguageController.instance.languageCode).listingUpdated)),
+                  );
+                } catch (e) {
+                  debugPrint('Update error: $e');
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Hata: $e')),
+                  );
+                }
+              },
+              child: Text(AppLocalizations.of(LanguageController.instance.languageCode).update),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -120,6 +396,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
         elevation: 0,
         foregroundColor: const Color(0xFF8B4513),
         actions: [
+          if (_isPremium && _notificationCount > 0)
+            Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications),
+                  onPressed: () {
+                    // Scroll to My Alerts section or show dialog
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Bildirimleri görmek için aşağı kaydırın'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '$_notificationCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
@@ -143,8 +460,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildBioCard(),
                     const SizedBox(height: 16),
                     _buildListingsCard(),
-
                     const SizedBox(height: 16),
+                    if (_isPremium) _buildMyAlertsCard(),
+                    if (_isPremium) const SizedBox(height: 16),
 
                     const SizedBox(height: 24),
                     ElevatedButton(
@@ -294,6 +612,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return _card(
       title: loc.myListings,
       child: FutureBuilder<List<Map<String, dynamic>>>(
+        key: ValueKey(_listingsRefreshKey),
         future: (_uid == null) ? Future.value([]) : ApiService.fetchListings(ownerId: _uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -313,10 +632,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
              separatorBuilder: (_, __) => const Divider(height: 1),
              itemBuilder: (context, index) {
                final data = docs[index];
+               final listingId = data['id'] as String?;
+               final title = (data['title'] as String?) ?? '-';
+               final price = (data['price'] as String?) ?? '';
+               
                return ListTile(
-                 title: Text((data['title'] as String?) ?? '-'),
-                 subtitle: Text((data['price'] as String?) ?? ''),
-                 trailing: const Icon(Icons.chevron_right),
+                 contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+                 title: Text(title),
+                 subtitle: Text(price),
+                 trailing: Row(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+                     IconButton(
+                       icon: const Icon(Icons.edit, color: Color(0xFF8B4513)),
+                       tooltip: loc.editListing,
+                       onPressed: () {
+                         _showEditListingDialog(data);
+                       },
+                     ),
+                     IconButton(
+                       icon: const Icon(Icons.delete, color: Colors.red),
+                       tooltip: loc.deleteListing,
+                       onPressed: listingId != null 
+                           ? () => _deleteListing(listingId, title)
+                           : null,
+                     ),
+                   ],
+                 ),
                  onTap: () {
                    Navigator.pushNamed(context, '/listing-detail', arguments: { 'listing': data });
                  },
@@ -324,6 +666,214 @@ class _ProfileScreenState extends State<ProfileScreen> {
              },
            );
         },
+      ),
+    );
+  }
+
+  Widget _buildMyAlertsCard() {
+    final loc = AppLocalizations.of(LanguageController.instance.languageCode);
+    return _card(
+      title: loc.myAlerts,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Notifications Section
+          if (_uid != null)
+            FutureBuilder<QuerySnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('notifications')
+                  .where('userId', isEqualTo: _uid)
+                  .where('isRead', isEqualTo: false)
+                  .orderBy('createdAt', descending: true)
+                  .limit(5)
+                  .get(),
+              builder: (context, notifSnapshot) {
+                if (notifSnapshot.hasData && notifSnapshot.data!.docs.isNotEmpty) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.new_releases, color: Colors.orange, size: 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            loc.languageCode == 'tr' ? 'Yeni Eşleşmeler' : 'New Matches',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ...notifSnapshot.data!.docs.map((doc) {
+                        final notif = doc.data() as Map<String, dynamic>;
+                        final listingData = notif['listingData'] as Map<String, dynamic>?;
+                        
+                        return Card(
+                          color: const Color(0xFFFFF9E6),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            leading: const Icon(Icons.fiber_new, color: Colors.orange),
+                            title: Text(
+                              listingData?['title'] ?? (loc.languageCode == 'tr' ? 'Yeni İlan' : 'New Listing'),
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                            ),
+                            subtitle: Text(
+                              '${listingData?['city'] ?? ''} - ${listingData?['price'] ?? ''}',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.close, size: 16),
+                              onPressed: () async {
+                                await doc.reference.update({'isRead': true});
+                                setState(() {
+                                  _notificationCount = _notificationCount > 0 ? _notificationCount - 1 : 0;
+                                });
+                              },
+                            ),
+                            onTap: () {
+                              // Navigate to listing detail
+                              final listingId = notif['listingId'] as String?;
+                              if (listingId != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('İlan ID: $listingId')),
+                                );
+                              }
+                            },
+                          ),
+                        );
+                      }).toList(),
+                      const Divider(height: 24),
+                    ],
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          
+          // Subscriptions Section
+          Text(
+            loc.languageCode == 'tr' ? 'Aktif Aboneliklerim' : 'My Active Subscriptions',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF8B4513),
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 8),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: (_uid == null) 
+                ? Future.value([]) 
+                : ApiService.fetchSubscriptions(
+                    userId: _uid!,
+                    checkActive: true,
+                  ),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              
+              final subscriptions = snapshot.data ?? [];
+              
+              if (subscriptions.isEmpty) {
+                return Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    loc.noActiveAlerts,
+                    style: const TextStyle(color: Color(0xFFCD853F), fontSize: 12),
+                  ),
+                );
+              }
+              
+              return Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4ECDC4),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.notifications_active, color: Colors.white, size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${subscriptions.length} ${loc.activeAlerts}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: subscriptions.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final sub = subscriptions[index];
+                      final city = sub['city'] as String? ?? '-';
+                      final category = sub['category'] as String? ?? '-';
+                      final expiresAtStr = sub['expiresAt'] as String?;
+                      
+                      String expiryText = '-';
+                      if (expiresAtStr != null) {
+                        try {
+                          final expiryDate = DateTime.parse(expiresAtStr);
+                          final daysLeft = expiryDate.difference(DateTime.now()).inDays;
+                          expiryText = '$daysLeft ${loc.languageCode == 'tr' ? 'gün' : 'days'}';
+                        } catch (e) {
+                          debugPrint('Date parse error: $e');
+                        }
+                      }
+                      
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4ECDC4).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.location_city,
+                            color: Color(0xFF4ECDC4),
+                            size: 18,
+                          ),
+                        ),
+                        title: Text(
+                          '$city - $category',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF8B4513),
+                            fontSize: 13,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${loc.expiresAt}: $expiryText',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFFCD853F),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
