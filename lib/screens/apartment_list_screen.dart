@@ -16,22 +16,80 @@ class ApartmentListScreen extends StatefulWidget {
 
 class _ApartmentListScreenState extends State<ApartmentListScreen> {
   String _selectedCity = 'Tümü';
+  // Advanced Filter Params
+  String _sortBy = 'default'; // 'default', 'compatibility'
+  bool _filterPetFriendly = false;
+  String? _filterGender;
+  
   // We use a Future for the API call
   late Future<List<Map<String, dynamic>>> _listingsFuture;
+  
+  bool _isPremium = false;
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
+    _checkUserPremium(); // Check status on init
     _loadListings();
+  }
+  
+  Future<void> _checkUserPremium() async {
+     final user = FirebaseAuth.instance.currentUser;
+     if (user != null) {
+        _currentUserId = user.uid;
+        try {
+          final userData = await ApiService.fetchUser(user.uid);
+          if (mounted) {
+            setState(() {
+               _isPremium = userData?['isPremium'] == true;
+            });
+          }
+        } catch (_) {}
+     }
   }
 
   void _loadListings() {
     setState(() {
-      _listingsFuture = ApiService.fetchListings(city: _selectedCity);
+      _listingsFuture = ApiService.fetchListings(
+          city: _selectedCity,
+          sortBy: _sortBy == 'compatibility' ? 'compatibility' : null,
+          userId: _currentUserId,
+          hasPet: _filterPetFriendly ? true : null,
+          gender: _filterGender,
+      );
     });
   }
 
   Future<void> _openSubscriptionDialog() async {
+    if (!_isPremium) {
+      // Upsell for non-premium users
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Premium Özellik 🌟'),
+          content: const Text('Anlık bildirim alarmları sadece Premium üyeler içindir. Hemen Premium\'a geçerek bu ve diğer avantajlardan yararlanabilirsiniz.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Vazgeç'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Lütfen Profil sayfasından Premium üyeliğinizi başlatın.')),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+              child: const Text('Premium\'a Geç'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     final Map<String, dynamic> criteria = {
       'city': _selectedCity == 'Tümü' ? null : _selectedCity,
       'category': 'apartment',
@@ -389,6 +447,14 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
         foregroundColor: const Color(0xFF8B4513),
         elevation: 0,
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.tune, color: _sortBy == 'compatibility' ? Colors.orange : const Color(0xFF8B4513)),
+            onPressed: () {
+               _showAdvancedFilters();
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -527,8 +593,32 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
           },
           child: Padding(
             padding: const EdgeInsets.all(12),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (listing['compatibilityScore'] != null && (listing['compatibilityScore'] as num) > 0)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                         const Icon(Icons.auto_awesome, size: 14, color: Colors.green),
+                         const SizedBox(width: 4),
+                         Text(
+                           '%${listing['compatibilityScore']} Uyum',
+                           style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
+                         ),
+                      ],
+                    ),
+                  ),
+                Row(
+                  children: [
                 // Image placeholder
                 _buildImage(listing),
                 const SizedBox(width: 12),
@@ -623,6 +713,8 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                   ),
               ],
             ),
+             ], // Close Column
+            ),
           ),
         ),
       ),
@@ -690,5 +782,109 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
       debugPrint('Görsel seçme hatası: $e');
       return null;
     }
+  }
+  
+  void _showAdvancedFilters() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+             return Padding(
+               padding: const EdgeInsets.all(16.0),
+               child: Column(
+                 mainAxisSize: MainAxisSize.min,
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Gelişmiş Filtreler', 
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        if (!_isPremium)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.amber,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text('Premium', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // SORTING
+                     const Text('Sıralama', style: TextStyle(fontWeight: FontWeight.bold)),
+                     RadioListTile<String>(
+                        title: const Text('En Yeni'),
+                        value: 'default',
+                        groupValue: _sortBy,
+                        onChanged: (v) {
+                           setModalState(() => _sortBy = v!);
+                           setState(() => _sortBy = v!);
+                           _loadListings();
+                        },
+                     ),
+                     Opacity(
+                       opacity: _isPremium ? 1.0 : 0.5,
+                       child: RadioListTile<String>(
+                          title: const Text('Akıllı Eşleşme (Bölüm/Okul)'),
+                          value: 'compatibility',
+                          groupValue: _sortBy,
+                          onChanged: !_isPremium ? null : (v) {
+                             setModalState(() => _sortBy = v!);
+                             setState(() => _sortBy = v!);
+                             _loadListings();
+                          },
+                          secondary: !_isPremium ? const Icon(Icons.lock, size: 16) : null,
+                       ),
+                     ),
+                     
+                     const Divider(),
+                     
+                     // FILTERS (Premium Only)
+                     const Text('Filtreler (Premium)', style: TextStyle(fontWeight: FontWeight.bold)),
+                     Opacity(
+                        opacity: _isPremium ? 1.0 : 0.5,
+                        child: SwitchListTile(
+                           title: const Text('Evcil Hayvan Dostu'),
+                           value: _filterPetFriendly,
+                           onChanged: !_isPremium ? null : (v) {
+                              setModalState(() => _filterPetFriendly = v);
+                              setState(() => _filterPetFriendly = v);
+                              _loadListings();
+                           },
+                        ),
+                     ),
+                     
+                     // Upsell if not premium
+                     if (!_isPremium)
+                       Padding(
+                         padding: const EdgeInsets.only(top: 8.0),
+                         child: ElevatedButton(
+                           onPressed: () {
+                             Navigator.pop(context); // Close sheet
+                             Navigator.pushNamed(context, '/settings'); // Or show payment banner
+                             ScaffoldMessenger.of(context).showSnackBar(
+                               const SnackBar(content: Text('Profile gidip Premium alabilirsiniz.')),
+                             );
+                           },
+                           style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+                           child: const Center(child: Text('Premium\'a Geç - \$10')),
+                         ),
+                       ),
+                 ],
+               ),
+             );
+          },
+        );
+      },
+    );
   }
 }

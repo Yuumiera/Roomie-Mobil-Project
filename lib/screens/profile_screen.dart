@@ -3,12 +3,15 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:roomie_mobil_project/services/premium_service.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import '../services/alert_subscription_service.dart';
 import '../services/language_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/theme_controller.dart';
+import '../widgets/premium_badge.dart';
+import '../widgets/upgrade_premium_banner.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -74,6 +77,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       debugPrint('Bildirim sayısı yüklenemedi: $e');
+    }
+  }
+
+  Future<void> _cancelPremium() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Abonelik İptali'),
+        content: const Text('Premium üyeliğinizi iptal etmek istediğinize emin misiniz? Tüm avantajlarınızı kaybedeceksiniz.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Vazgeç'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('İptal Et'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      if (mounted) setState(() => _loading = true);
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final success = await PremiumService.cancelSubscription(user.uid);
+        if (success) {
+           await _loadUser(); // Refresh UI
+           if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text('Aboneliğiniz iptal edildi.')),
+             );
+           }
+        } else {
+           if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text('İptal işlemi başarısız.')),
+             );
+           }
+        }
+      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -453,6 +500,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (!_isPremium && !_loading) 
+                      UpgradePremiumBanner(
+                        onUpgraded: () async {
+                           await _loadUser();
+                           // Optionally refresh app state
+                        },
+                      ),
                     _buildHeader(),
                     const SizedBox(height: 16),
                     _buildInfoCard(),
@@ -462,7 +516,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildListingsCard(),
                     const SizedBox(height: 16),
                     if (_isPremium) _buildMyAlertsCard(),
-                    if (_isPremium) const SizedBox(height: 16),
+                    if (_isPremium) ...[
+                      const SizedBox(height: 16),
+                      Center(
+                        child: TextButton(
+                          onPressed: _cancelPremium,
+                          child: const Text(
+                            'Premium Aboneliği İptal Et',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ),
+                    ],
 
                     const SizedBox(height: 24),
                     ElevatedButton(
@@ -547,13 +612,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          name,
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF8B4513),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+             Text(
+              name,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF8B4513),
+              ),
+            ),
+            if (_isPremium) ...[
+               const SizedBox(width: 6),
+               const PremiumBadge(size: 24),
+            ],
+          ],
         ),
         const SizedBox(height: 4),
         Text(

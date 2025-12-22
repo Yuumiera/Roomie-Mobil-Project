@@ -16,12 +16,25 @@ class ApiService {
 
   // --- LISTINGS ---
 
-  static Future<List<Map<String, dynamic>>> fetchListings({String? city, String category = 'apartment', String? ownerId}) async {
+  static Future<List<Map<String, dynamic>>> fetchListings({
+    String? city,
+    String category = 'apartment',
+    String? ownerId,
+    String? sortBy, // 'compatibility'
+    String? userId, // for compatibility scoring
+    // Advanced Filters
+    String? gender,
+    bool? hasPet,
+  }) async {
     try {
       final Map<String, dynamic> queryParams = {
         if (category.isNotEmpty) 'category': category,
         if (city != null && city != 'Tümü') 'city': city,
         if (ownerId != null) 'ownerId': ownerId,
+        if (sortBy != null) 'sortBy': sortBy,
+        if (userId != null) 'userId': userId,
+        if (gender != null) 'gender': gender,
+        if (hasPet != null) 'hasPet': hasPet.toString(),
       };
 
       final uri = Uri.parse('$baseUrl/api/listings').replace(queryParameters: queryParams);
