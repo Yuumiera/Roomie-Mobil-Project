@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../widgets/app_bottom_nav.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final String userId;
@@ -75,6 +76,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
               ),
             ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1), // Home active since accessed from listing detail
     );
   }
 

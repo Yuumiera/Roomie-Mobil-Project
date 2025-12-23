@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../services/language_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/cities.dart';
+import '../widgets/app_bottom_nav.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -204,6 +205,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ),
             ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 2), // Profile active since accessed from Profile
     );
   }
 

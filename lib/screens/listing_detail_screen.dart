@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/api_service.dart';
+import '../widgets/app_bottom_nav.dart';
 import 'chat_screen.dart';
 
 class ListingDetailScreen extends StatefulWidget {
@@ -231,6 +232,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1), // Home active since accessed from Home categories
     );
   }
 

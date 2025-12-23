@@ -76,6 +76,19 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _messageController.text.trim();
     if (text.isEmpty || _currentUserId.isEmpty) return;
 
+    // Optimistically add message to UI immediately
+    final optimisticMessage = {
+      'senderId': _currentUserId,
+      'text': text,
+      'createdAt': DateTime.now().toIso8601String(),
+    };
+    
+    setState(() {
+      _messages.insert(0, optimisticMessage); // Add to front (newest)
+    });
+    
+    _messageController.clear();
+
     try {
       await ApiService.sendMessage(
         _conversationId,
@@ -83,11 +96,22 @@ class _ChatScreenState extends State<ChatScreen> {
         text,
         [_currentUserId, widget.otherUserId]
       );
-      _messageController.clear();
-      _loadMessages(background: true);
+      // Reload messages from backend to sync
+      await _loadMessages(background: true);
     } catch (e) {
+      // Remove optimistic message on error
+      setState(() {
+        _messages.removeWhere((m) => 
+          m['senderId'] == _currentUserId && 
+          m['text'] == text &&
+          m['createdAt'] == optimisticMessage['createdAt']
+        );
+      });
+      
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Mesaj gönderilemedi: $e'))
+        );
       }
     }
   }

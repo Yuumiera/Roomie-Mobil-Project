@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../utils/cities.dart';
 import '../widgets/alert_subscription_dialog.dart';
 import '../widgets/premium_alert_banner.dart';
+import '../widgets/app_bottom_nav.dart';
 
 class HouseListScreen extends StatefulWidget {
   const HouseListScreen({super.key});
@@ -327,6 +328,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
         foregroundColor: const Color(0xFF8B4513),
         child: const Icon(Icons.add),
       ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1), // Home active since accessed from Home
     );
   }
 

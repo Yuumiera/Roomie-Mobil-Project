@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/cities.dart';
 import '../widgets/alert_subscription_dialog.dart';
 import '../widgets/premium_alert_banner.dart';
+import '../widgets/app_bottom_nav.dart';
 import '../services/api_service.dart'; // Added ApiService import
 
 class DormitoryListScreen extends StatefulWidget {
@@ -412,6 +413,7 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1), // Home active since accessed from Home
     );
   }
 

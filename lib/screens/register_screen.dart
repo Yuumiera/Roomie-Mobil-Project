@@ -278,7 +278,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   obscureText: _obscurePassword,
                   decoration: _inputDecoration(
                     label: 'Password',
-                    hint: 'At least 6 characters',
+                    hint: 'Min 8 chars, 1 uppercase, 1 special char',
                     icon: Icons.lock_outline,
                     suffixIcon: IconButton(
                       icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
@@ -293,11 +293,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Password is required';
                     }
-                    if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
+                    if (value.length < 8) {
+                      return 'Password must be at least 8 characters';
+                    }
+                    // Check for at least one uppercase letter
+                    if (!RegExp(r'[A-Z]').hasMatch(value)) {
+                      return 'Password must contain at least 1 uppercase letter';
+                    }
+                    // Check for at least one special character (punctuation)
+                    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value)) {
+                      return 'Password must contain at least 1 special character';
                     }
                     return null;
                   },
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 12, top: 4),
+                  child: Text(
+                    '• Min 8 characters\n• 1 uppercase letter\n• 1 special character (!@#\$%^&*...)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
+                      height: 1.3,
+                    ),
+                  ),
                 ),
 
                 const SizedBox(height: 16),

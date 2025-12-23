@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../models/chat_model.dart';
 import '../services/unread_service.dart';
 import '../services/local_unread_tracker.dart';
+import '../widgets/app_bottom_nav.dart';
 import 'chat_screen.dart';
 
 class MessagesScreen extends StatefulWidget {
@@ -69,10 +70,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
       backgroundColor: const Color(0xFFFDF6E3),
       appBar: AppBar(
         title: const Text('Mesajlar'),
-        backgroundColor: const Color(0xFF4CAF50),
+        backgroundColor: Colors.transparent,
         foregroundColor: const Color(0xFF8B4513),
         elevation: 0,
         centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: const Color(0xFF4CAF50),
+            height: 2.0,
+          ),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -202,6 +210,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     );
                   },
                 ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 0), // Messages is index 0
     );
   }
 }

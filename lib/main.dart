@@ -15,6 +15,7 @@ import 'screens/chat_screen.dart';
 import 'screens/user_profile_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/edit_profile_screen.dart';
+import 'screens/change_password_screen.dart';
 import 'services/message_notification_service.dart';
 import 'services/unread_service.dart';
 import 'services/language_controller.dart';
@@ -109,6 +110,7 @@ class MyApp extends StatelessWidget {
             },
             '/settings': (context) => const SettingsScreen(),
             '/edit-profile': (context) => const EditProfileScreen(),
+            '/change-password': (context) => const ChangePasswordScreen(),
           },
         );
       },

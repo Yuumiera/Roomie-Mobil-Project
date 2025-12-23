@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/unread_service.dart';
+import '../widgets/app_bottom_nav.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -9,28 +9,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 1; // Home tab is selected by default
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    
-    // Handle navigation based on selected tab
-    switch (index) {
-      case 0:
-        Navigator.pushNamed(context, '/messages');
-        break;
-      case 1:
-        // Already on Home screen
-        break;
-      case 2:
-        // Navigate to Profile screen
-        Navigator.pushNamed(context, '/profile');
-        break;
-    }
-  }
-
   void _onCategorySelected(String category) {
     switch (category) {
       case 'Dormitory':
@@ -56,10 +34,17 @@ class _HomeScreenState extends State<HomeScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: const Color(0xFF4CAF50), // Green from login logo
-        foregroundColor: const Color(0xFF8B4513), // Brand primary color from login
+        backgroundColor: Colors.transparent,
+        foregroundColor: const Color(0xFF8B4513),
         elevation: 0,
         centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: const Color(0xFF4CAF50),
+            height: 2.0,
+          ),
+        ),
       ),
       body: SafeArea(
         child: Padding(
@@ -133,47 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: ListenableBuilder(
-        listenable: UnreadService.instance,
-        builder: (context, _) {
-          final unreadCount = UnreadService.instance.totalUnread;
-          
-          return BottomNavigationBar(
-            items: <BottomNavigationBarItem>[
-              BottomNavigationBarItem(
-                icon: Badge(
-                  label: unreadCount > 0 ? Text('$unreadCount') : null,
-                  isLabelVisible: unreadCount > 0,
-                  child: const Icon(Icons.message_outlined),
-                ),
-                activeIcon: Badge(
-                  label: unreadCount > 0 ? Text('$unreadCount') : null,
-                  isLabelVisible: unreadCount > 0,
-                  child: const Icon(Icons.message),
-                ),
-                label: 'Messages',
-              ),
-              const BottomNavigationBarItem(
-                icon: Icon(Icons.home_outlined),
-                activeIcon: Icon(Icons.home),
-                label: 'Home',
-              ),
-              const BottomNavigationBarItem(
-                icon: Icon(Icons.person_outline),
-                activeIcon: Icon(Icons.person),
-                label: 'Profile',
-              ),
-            ],
-            currentIndex: _selectedIndex,
-            selectedItemColor: const Color(0xFF8B4513),
-            unselectedItemColor: Colors.grey,
-            onTap: _onItemTapped,
-            backgroundColor: Colors.white,
-            elevation: 8,
-            type: BottomNavigationBarType.fixed,
-          );
-        },
-      ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1), // Home is index 1
     );
   }
 

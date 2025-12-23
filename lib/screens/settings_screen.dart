@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/theme_controller.dart';
 import '../services/language_controller.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/app_bottom_nav.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -107,7 +108,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: Text(loc.changePassword, style: TextStyle(color: textColor)),
               trailing: Icon(Icons.chevron_right, color: iconColor),
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.comingSoon)));
+                Navigator.pushNamed(context, '/change-password');
               },
             ),
           ], cardColor),
@@ -168,6 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 30),
         ],
       ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 2), // Profile active since accessed from Profile
     );
   }
 

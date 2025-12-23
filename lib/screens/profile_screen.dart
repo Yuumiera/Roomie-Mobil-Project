@@ -12,6 +12,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/premium_badge.dart';
 import '../widgets/upgrade_premium_banner.dart';
+import '../widgets/app_bottom_nav.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -491,6 +492,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             },
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: const Color(0xFF4CAF50),
+            height: 2.0,
+          ),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -544,6 +552,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 2), // Profile is index 2
     );
   }
 
