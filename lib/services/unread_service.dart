@@ -47,7 +47,7 @@ class UnreadService extends ChangeNotifier {
       int total = 0;
       
       for (final chat in conversations) {
-        // Use LocalUnreadTracker to determine if this conversation has unread messages
+        
         final hasUnread = await LocalUnreadTracker.instance.hasUnread(
           chat.id,
           chat.lastMessageTime,
@@ -56,7 +56,7 @@ class UnreadService extends ChangeNotifier {
         );
         
         if (hasUnread) {
-          total += 1;  // Count as 1 unread conversation
+          total += 1;
         }
       }
       

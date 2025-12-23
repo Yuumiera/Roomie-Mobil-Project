@@ -39,7 +39,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     final String price = listing['price'] ?? '';
     final String location = listing['location'] ?? '';
     final String? imageUrl = listing['imageUrl'] as String?;
-    final List<dynamic>? images = listing['images'] as List<dynamic>?; // List<String> of local paths
+    final List<dynamic>? images = listing['images'] as List<dynamic>?; 
     final bool? petsAllowed = listing['petsAllowed'] as bool?;
     final String ownerName = (listing['ownerName'] as String?) ?? 'Kullanıcı';
     final String category = (listing['category'] as String?) ?? '';
@@ -55,6 +55,13 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         foregroundColor: const Color(0xFF8B4513),
         elevation: 0,
         centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: const Color(0xFF4CAF50),
+            height: 2.0,
+          ),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -94,7 +101,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                 builder: (context) {
                   final String ownerId = (listing['ownerId'] as String?) ?? '';
                   final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
-                  // Enable message button if ownerId exists and is not the current user
+                  
                   final bool canMessage = ownerId.isNotEmpty && ownerId != currentUid;
                   return Row(
                     children: [
@@ -232,7 +239,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 1), // Home active since accessed from Home categories
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
     );
   }
 

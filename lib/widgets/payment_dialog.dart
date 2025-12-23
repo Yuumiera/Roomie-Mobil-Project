@@ -49,7 +49,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
 
   Future<void> _submit() async {
     setState(() => _isProcessing = true);
-    // Simulate network delay
+    
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) Navigator.of(context).pop(true);
   }

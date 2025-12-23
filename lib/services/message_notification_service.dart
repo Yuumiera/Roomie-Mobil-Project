@@ -45,7 +45,7 @@ class MessageNotificationService {
     _pollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       _checkConversations(userId);
     });
-    // Check immediately
+    
     _checkConversations(userId);
   }
 
@@ -58,11 +58,6 @@ class MessageNotificationService {
         final lastMessageAt = chat.lastMessageTime;
         final known = _lastKnownMessageTimes[chat.id];
 
-        // If known is null (first run), we typically assume we've seen everything to avoid spam.
-        // However, if we want to notify for "new" messages that arrived while app was closed, we check if they are recent?
-        // For simplicity and matching user request "similar to WhatsApp", usually you get notifications if you aren't looking.
-        // But since this is a simple polling service, let's just update ‘known’ if it's null, 
-        // to start tracking FROM NOW.
         if (known == null) {
           _lastKnownMessageTimes[chat.id] = lastMessageAt;
           continue;
@@ -71,7 +66,7 @@ class MessageNotificationService {
         if (lastMessageAt.isAfter(known)) {
           _lastKnownMessageTimes[chat.id] = lastMessageAt;
           
-          // Only notify if sender is not me
+          
           if (chat.lastMessageSenderId.isNotEmpty && chat.lastMessageSenderId != userId) {
              await _showNotification(
               conversationId: chat.id,
@@ -100,7 +95,7 @@ class MessageNotificationService {
     );
     const notificationDetails = NotificationDetails(android: androidDetails);
     
-    // Extract other user from convo ID
+    
     final parts = conversationId.split('__');
     String otherUserId = '';
     if (parts.length == 2) {

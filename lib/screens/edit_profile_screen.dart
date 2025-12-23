@@ -80,7 +80,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           'classYear': _classYear,
           'gender': _gender,
           'hasPet': _hasPet,
-          // timestamps added by backend
+          
         });
         if (mounted) {
           final loc = AppLocalizations.of(LanguageController.instance.languageCode);
@@ -110,6 +110,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         elevation: 0,
         foregroundColor: const Color(0xFF8B4513),
         centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: const Color(0xFF4CAF50),
+            height: 2.0,
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.check),
@@ -150,14 +157,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     DropdownButtonFormField<String>(
                       value: _gender,
                       items: () {
-                        // Build unique dropdown items
+                        
                         final List<DropdownMenuItem<String>> items = [
                           DropdownMenuItem(value: 'Male', child: Text(loc.male)),
                           DropdownMenuItem(value: 'Female', child: Text(loc.female)),
                           DropdownMenuItem(value: 'Other', child: Text(loc.other)),
                         ];
                         
-                        // If current value is Turkish, add it if not already English equivalent
+                        
                         if (_gender != null && !['Male', 'Female', 'Other'].contains(_gender)) {
                           String label = _gender!;
                           if (_gender == 'Erkek') label = loc.male;
@@ -205,7 +212,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ),
             ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 2), // Profile active since accessed from Profile
+      bottomNavigationBar: const AppBottomNav(currentIndex: 2),
     );
   }
 

@@ -5,24 +5,21 @@ import 'package:http/http.dart' as http;
 import '../models/chat_model.dart';
 
 class ApiService {
-  // Use 10.0.2.2 for Android Emulator, localhost for iOS/Web
-  // Use 10.0.2.2 for Android Emulator, localhost for iOS/Web
+  
   static String get baseUrl {
-    // Local Development (Android Emulator)
-    // return 'http://10.0.2.2:3000';
-    // Production URL (Render.com)
+    
     return 'https://roomie-mobil-project.onrender.com';
   }
 
-  // --- LISTINGS ---
+
 
   static Future<List<Map<String, dynamic>>> fetchListings({
     String? city,
     String category = 'apartment',
     String? ownerId,
-    String? sortBy, // 'compatibility'
-    String? userId, // for compatibility scoring
-    // Advanced Filters
+    String? sortBy, 
+    String? userId, 
+    
     String? gender,
     bool? hasPet,
   }) async {
@@ -108,7 +105,7 @@ class ApiService {
     }
   }
 
-  // --- USERS ---
+
 
   static Future<void> createUser(Map<String, dynamic> data) async {
     try {
@@ -161,7 +158,7 @@ class ApiService {
     }
   }
 
-  // --- MESSAGING ---
+
 
   static Future<List<Chat>> fetchConversations(String userId) async {
     try {
@@ -235,7 +232,7 @@ class ApiService {
     }
   }
 
-  // --- SUBSCRIPTIONS ---
+
 
   static Future<void> createSubscription(Map<String, dynamic> data) async {
     try {

@@ -21,10 +21,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _cityController = TextEditingController();
   final TextEditingController _departmentController = TextEditingController();
 
-  String? _selectedGender; // Male, Female, Other
-  String? _selectedClassYear; // 1,2,3,4,5,6
-  bool? _hasPet; // true/false
-  String? _selectedCity; // City selection
+  String? _selectedGender; 
+  String? _selectedClassYear; 
+  bool? _hasPet; 
+  String? _selectedCity;
 
   static const List<String> _cities = [
     'Adana','Adıyaman','Afyonkarahisar','Ağrı','Aksaray','Amasya','Ankara','Antalya','Ardahan','Artvin',
@@ -121,13 +121,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      // Firebase Authentication ile kullanıcı oluştur
+      
       final UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
-      // API üzerinden kullanıcı oluştur
+      
       await ApiService.createUser({
         'uid': userCredential.user!.uid,
         'name': _nameSurnameController.text.trim(),
@@ -139,8 +139,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'department': _departmentController.text.trim(),
         'classYear': _selectedClassYear,
         'hasPet': _hasPet,
-        // timestamps added by backend
       });
+
 
       if (!mounted) return;
       setState(() {
@@ -200,6 +200,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: const Color(0xFF8B4513),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: const Color(0xFF4CAF50),
+            height: 2.0,
+          ),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -296,11 +303,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     if (value.length < 8) {
                       return 'Password must be at least 8 characters';
                     }
-                    // Check for at least one uppercase letter
+                    
                     if (!RegExp(r'[A-Z]').hasMatch(value)) {
                       return 'Password must contain at least 1 uppercase letter';
                     }
-                    // Check for at least one special character (punctuation)
+                    
                     if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value)) {
                       return 'Password must contain at least 1 special character';
                     }

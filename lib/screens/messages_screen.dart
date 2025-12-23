@@ -105,7 +105,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           photoUrl = userData['photoUrl'] as String?;
                         }
                         
-                        // Get unread count for current user
+                        
                         final unreadCount = chat.unreadCount[currentUserId] ?? 0;
                         
                         Widget avatarChild;
@@ -133,7 +133,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           avatarChild = const Icon(Icons.person);
                         }
                         
-                        // Get unread status using LocalUnreadTracker
+                        
                         return FutureBuilder<bool>(
                           future: LocalUnreadTracker.instance.hasUnread(
                             chat.id,
@@ -187,7 +187,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             ],
                           ),
                           onTap: () async {
-                            // Mark as seen before navigating
+                            
                             await LocalUnreadTracker.instance.markConversationAsSeen(chat.id);
                             
                             await Navigator.push(
@@ -199,7 +199,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                                 ),
                               ),
                             );
-                            // Refresh unread counts after returning
+                            
                             _loadConversations(background: true);
                             UnreadService.instance.refresh();
                           },
@@ -210,7 +210,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     );
                   },
                 ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 0), // Messages is index 0
+      bottomNavigationBar: const AppBottomNav(currentIndex: 0),
     );
   }
 }

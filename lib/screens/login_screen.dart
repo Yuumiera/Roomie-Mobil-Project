@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../services/language_controller.dart';
+import '../l10n/app_localizations.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -31,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Firebase Authentication ile giriş yap
+      
       final UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -91,27 +93,27 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Google Sign-In işlemi
+      
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       
       if (googleUser == null) {
-        // Kullanıcı iptal etti
+        
         setState(() {
           _isLoading = false;
         });
         return;
       }
 
-      // Google authentication detayları
+      
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-      // Firebase credential oluştur
+      
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // Firebase ile giriş yap
+      
       final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
 
       if (mounted) {
@@ -138,6 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(LanguageController.instance.languageCode);
     return Scaffold(
       backgroundColor: const Color(0xFFFDF6E3),
       body: SafeArea(
@@ -193,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Find Your Roommate',
+                      loc.findPerfectPlace,
                       style: TextStyle(
                         fontSize: 16,
                         color: const Color(0xFFCD853F),
@@ -208,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
-                    labelText: 'Email',
+                    labelText: loc.email,
                     hintText: 'email@example.com',
                     prefixIcon: const Icon(Icons.email_outlined),
                     border: OutlineInputBorder(
@@ -221,10 +224,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Email is required';
+                      return loc.emailRequired;
                     }
                     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                      return 'Please enter a valid email';
+                      return loc.invalidEmail;
                     }
                     return null;
                   },
@@ -235,7 +238,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText: loc.password,
                     hintText: 'Enter your password',
                     prefixIcon: const Icon(Icons.lock_outlined),
                     suffixIcon: IconButton(
@@ -258,10 +261,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Password is required';
+                      return loc.passwordRequired;
                     }
                     if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
+                      return loc.passwordLength;
                     }
                     return null;
                   },
@@ -275,7 +278,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Navigator.pushNamed(context, '/forgot-password');
                     },
                     child: Text(
-                      'Forgot Password?',
+                      loc.forgotPassword,
                       style: TextStyle(
                         color: const Color(0xFFD4AF37),
                         fontWeight: FontWeight.w500,
@@ -305,8 +308,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text(
-                          'Sign In',
+                      : Text(
+                          loc.signIn,
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -321,7 +324,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        'or',
+                        loc.or,
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontSize: 14,
@@ -347,7 +350,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       );
                     },
                   ),
-                  label: const Text('Sign in with Google'),
+                  label: Text(loc.signInWithGoogle),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -362,7 +365,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Don\'t have an account? ',
+                      loc.dontHaveAccount,
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 14,
@@ -373,7 +376,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Navigator.pushNamed(context, '/register');
                       },
                       child: Text(
-                        'Sign Up',
+                        loc.signUp,
                         style: TextStyle(
                           color: const Color(0xFFD4AF37),
                           fontWeight: FontWeight.w600,

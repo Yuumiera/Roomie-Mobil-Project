@@ -73,7 +73,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
     final List<String> images = [];
     String ownerName = '';
     String ownerId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    // House specific fields
+    
     String roomCount = '';
     bool hasGarden = false;
     bool hasGarage = false;
@@ -220,7 +220,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
                        'heating': heating,
                        'squareMeters': squareMeters,
                        'addressDirections': addressDirections,
-                       // timestamps added by backend
+                       
                     });
                     if (mounted) Navigator.pop(context);
                     _loadListings();
@@ -255,9 +255,16 @@ class _HouseListScreenState extends State<HouseListScreen> {
           'Müstakil Ev',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: const Color(0xFFD4AF37),
+        backgroundColor: Colors.transparent,
         foregroundColor: const Color(0xFF8B4513),
         centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: const Color(0xFF4CAF50),
+            height: 2.0,
+          ),
+        ),
       ),
       body: SafeArea(
         child: Padding(
@@ -269,7 +276,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                   const Icon(Icons.location_city, color: Color(0xFFD4AF37)),
+                   const Icon(Icons.location_city, color: Color(0xFF8B4513)),
                    const SizedBox(width: 8),
                    Expanded(
                      child: DropdownButtonFormField<String>(
@@ -324,11 +331,11 @@ class _HouseListScreenState extends State<HouseListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addNewListing,
-        backgroundColor: const Color(0xFFD4AF37),
-        foregroundColor: const Color(0xFF8B4513),
+        backgroundColor: const Color(0xFF8B4513),
+        foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 1), // Home active since accessed from Home
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
     );
   }
 
@@ -340,7 +347,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFD4AF37).withOpacity(0.1),
+            color: const Color(0xFF8B4513).withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -384,13 +391,13 @@ class _HouseListScreenState extends State<HouseListScreen> {
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFFD4AF37),
+                          color: Color(0xFF8B4513),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFFD4AF37)),
+                const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF8B4513)),
               ],
             ),
           ),
@@ -400,7 +407,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
   }
 
   Widget _buildImage(Map<String, dynamic> listing) {
-    // Try to find first image
+    
     String? path;
     if (listing['images'] != null && (listing['images'] as List).isNotEmpty) {
        path = (listing['images'] as List)[0];
@@ -409,14 +416,7 @@ class _HouseListScreenState extends State<HouseListScreen> {
     }
 
     if (path != null) {
-      // Local or network?
-      // Since ApiService saves whatever string, and ImagePicker returns local paths,
-      // For shared listings, local paths won't work on other devices unless we upload to storage.
-      // But for this local demo/emulator it might work if on same device.
-      // Ideally we need Firebase Storage URL. 
-      // But for now let's try to show placeholder if it fails or if it looks like a local path we can't read?
-      // Actually image logic across the app relies on paths. 
-      // If path starts with http, use network. Else file.
+      
       if (path.startsWith('http')) {
          return ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -437,10 +437,10 @@ class _HouseListScreenState extends State<HouseListScreen> {
       width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color: const Color(0xFFD4AF37).withOpacity(0.1),
+        color: const Color(0xFF8B4513).withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Icon(Icons.home, color: Color(0xFFD4AF37)),
+      child: const Icon(Icons.home, color: Color(0xFF8B4513)),
     );
   }
 }

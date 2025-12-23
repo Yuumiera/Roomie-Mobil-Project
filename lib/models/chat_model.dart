@@ -5,7 +5,7 @@ class Chat {
   final List<String> members;
   final String lastMessage;
   final String lastMessageSenderId;
-  final DateTime lastMessageTime; // Optional: to sort by time
+  final DateTime lastMessageTime;
   final Map<String, int> unreadCount;
 
   Chat({
@@ -18,13 +18,13 @@ class Chat {
   });
 
   factory Chat.fromJson(Map<String, dynamic> json) {
-    // Parse members
+    
     final membersList = (json['members'] as List<dynamic>? ?? []).cast<String>();
     
-    // Parse unreadCount (kept for future backend support, currently unused)
+    
     final unreadMap = <String, int>{};
     
-    // Parse lastMessageTime
+    
     DateTime time = DateTime.now();
     var timeRaw = json['lastMessageAt'] ?? json['updatedAt'];
     if (timeRaw != null) {

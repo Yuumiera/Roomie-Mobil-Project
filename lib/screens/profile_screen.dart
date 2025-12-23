@@ -52,8 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _loading = false;
       });
       
-      // Load notification count if premium
-      if (_isPremium) {
+      If (_isPremium) {
         _loadNotificationCount();
       }
     } catch (e) {
@@ -107,7 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (user != null) {
         final success = await PremiumService.cancelSubscription(user.uid);
         if (success) {
-           await _loadUser(); // Refresh UI
+           await _loadUser();
            if (mounted) {
              ScaffoldMessenger.of(context).showSnackBar(
                const SnackBar(content: Text('Aboneliğiniz iptal edildi.')),
@@ -131,8 +130,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final picker = ImagePicker();
     final XFile? image = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 50, // Lower quality to reduce size
-      maxWidth: 400,    // Limit dimensions
+      imageQuality: 50, 
+      maxWidth: 400,    
       maxHeight: 400,
     );
     if (image == null) return;
@@ -145,10 +144,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final bytes = await image.readAsBytes();
       if (bytes.isEmpty) throw Exception('Seçilen görsel boş/okunamadı.');
 
-      // Convert to base64
+      
       final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
       
-      // Check size (Firestore has 1MB document limit)
+      
       if (base64Image.length > 500000) {
         throw Exception('Görsel çok büyük. Lütfen daha küçük bir görsel seçin.');
       }
@@ -214,7 +213,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final formKey = GlobalKey<FormState>();
     final listingId = listing['id'] as String;
     
-    // All fields
+    
     String title = listing['title'] as String? ?? '';
     String description = listing['description'] as String? ?? '';
     String price = (listing['price'] as String? ?? '').replaceAll('₺', '').trim();
@@ -222,7 +221,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String ownerName = listing['ownerName'] as String? ?? '';
     bool petsAllowed = listing['petsAllowed'] as bool? ?? false;
     
-    // Apartment specific
+    
     String roomCount = listing['roomCount'] as String? ?? '';
     bool hasBalcony = listing['hasBalcony'] as bool? ?? false;
     String balconyCount = listing['balconyCount'] as String? ?? '';
@@ -450,38 +449,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 IconButton(
                   icon: const Icon(Icons.notifications),
                   onPressed: () {
-                    // Scroll to My Alerts section or show dialog
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Bildirimleri görmek için aşağı kaydırın'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
+                    _showNotificationsDialog();
                   },
                 ),
                 Positioned(
                   right: 8,
                   top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
-                    ),
-                    child: Text(
-                      '$_notificationCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+                  child: _notificationCount > 0 
+                    ? Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          '$_notificationCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
                 ),
               ],
             ),
@@ -512,7 +507,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       UpgradePremiumBanner(
                         onUpgraded: () async {
                            await _loadUser();
-                           // Optionally refresh app state
+                           
                         },
                       ),
                     _buildHeader(),
@@ -552,7 +547,189 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 2), // Profile is index 2
+      bottomNavigationBar: const AppBottomNav(currentIndex: 2),
+    );
+  }
+
+  void _showNotificationsDialog() {
+    final loc = AppLocalizations.of(LanguageController.instance.languageCode);
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(loc.notifications),
+              if (_notificationCount > 0)
+                TextButton(
+                  onPressed: () async {
+                    
+                    try {
+                      final batch = FirebaseFirestore.instance.batch();
+                      final snapshot = await FirebaseFirestore.instance
+                          .collection('notifications')
+                          .where('userId', isEqualTo: _uid)
+                          .where('isRead', isEqualTo: false)
+                          .get();
+                      
+                      for (var doc in snapshot.docs) {
+                        batch.update(doc.reference, {'isRead': true});
+                      }
+                      
+                      await batch.commit();
+                      
+                      if (mounted) {
+                        setState(() {
+                          _notificationCount = 0;
+                        });
+                        Navigator.pop(context);
+                      }
+                    } catch (e) {
+                      debugPrint('Clear all error: $e');
+                    }
+                  },
+                  child: Text(
+                    loc.languageCode == 'tr' ? 'Temizle' : 'Clear',
+                    style: const TextStyle(fontSize: 12, color: Colors.blue),
+                  ),
+                ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: FutureBuilder<QuerySnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('notifications')
+                  .where('userId', isEqualTo: _uid)
+                  .where('isRead', isEqualTo: false)
+                  .limit(20)
+                  .get(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 100,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                
+                if (snapshot.hasError) {
+                  return SizedBox(
+                    height: 100,
+                    child: Center(child: Text('Hata: ${snapshot.error}')),
+                  );
+                }
+                
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return SizedBox(
+                    height: 100,
+                    child: Center(
+                      child: Text(loc.noActiveAlerts),
+                    ),
+                  );
+                }
+
+                
+                final docs = snapshot.data!.docs.toList();
+                docs.sort((a, b) {
+                  final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+                  final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+                  if (aTime == null || bTime == null) return 0;
+                  return bTime.compareTo(aTime);
+                });
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final doc = docs[index];
+                    final notif = doc.data() as Map<String, dynamic>;
+                    final listingData = notif['listingData'] as Map<String, dynamic>?;
+                    
+                    return ListTile(
+                      leading: const Icon(Icons.fiber_new, color: Colors.orange),
+                      title: Text(
+                        listingData?['title'] ?? (loc.languageCode == 'tr' ? 'Yeni İlan' : 'New Listing'),
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        '${listingData?['city'] ?? ''} - ${listingData?['price'] ?? ''}',
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.check, size: 20, color: Colors.green),
+                        onPressed: () async {
+                          await doc.reference.update({'isRead': true});
+                          if (mounted) {
+                            setState(() {
+                              _notificationCount = _notificationCount > 0 ? _notificationCount - 1 : 0;
+                            });
+                            Navigator.pop(context);
+                            _showNotificationsDialog();
+                          }
+                        },
+                      ),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final listingId = notif['listingId'] as String?;
+                        if (listingId != null) {
+                          try {
+                            
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (c) => const Center(child: CircularProgressIndicator()),
+                            );
+
+                            final docSnapshot = await FirebaseFirestore.instance
+                                .collection('listings')
+                                .doc(listingId)
+                                .get();
+                            
+                            Navigator.of(context, rootNavigator: true).pop();
+
+                            if (docSnapshot.exists && docSnapshot.data() != null) {
+                               final listingData = docSnapshot.data()!;
+                               final fullListing = Map<String, dynamic>.from(listingData);
+                               fullListing['id'] = listingId;
+                               
+                               Navigator.pushNamed(
+                                 context, 
+                                 '/listing-detail', 
+                                 arguments: { 'listing': fullListing }
+                               );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Bu ilan artık mevcut değil.')),
+                              );
+                            }
+                          } catch (e) {
+                             if (Navigator.of(context).canPop()) {
+                               Navigator.of(context, rootNavigator: true).pop();
+                             }
+                             ScaffoldMessenger.of(context).showSnackBar(
+                               const SnackBar(content: Text('Bir hata oluştu.')),
+                             );
+                          }
+                        }
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(loc.cancel),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -760,18 +937,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Notifications Section
+          
           if (_uid != null)
             FutureBuilder<QuerySnapshot>(
               future: FirebaseFirestore.instance
                   .collection('notifications')
                   .where('userId', isEqualTo: _uid)
                   .where('isRead', isEqualTo: false)
-                  .orderBy('createdAt', descending: true)
                   .limit(5)
                   .get(),
               builder: (context, notifSnapshot) {
                 if (notifSnapshot.hasData && notifSnapshot.data!.docs.isNotEmpty) {
+                  
+                  final docs = notifSnapshot.data!.docs.toList();
+                  docs.sort((a, b) {
+                    final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+                    final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+                    if (aTime == null || bTime == null) return 0;
+                    return bTime.compareTo(aTime);
+                  });
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -790,7 +975,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      ...notifSnapshot.data!.docs.map((doc) {
+                      ...docs.map((doc) {
                         final notif = doc.data() as Map<String, dynamic>;
                         final listingData = notif['listingData'] as Map<String, dynamic>?;
                         
@@ -818,13 +1003,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 });
                               },
                             ),
-                            onTap: () {
-                              // Navigate to listing detail
+                            onTap: () async {
+                              
                               final listingId = notif['listingId'] as String?;
                               if (listingId != null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('İlan ID: $listingId')),
-                                );
+                                try {
+                                  
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (c) => const Center(child: CircularProgressIndicator()),
+                                  );
+
+                                  final docSnapshot = await FirebaseFirestore.instance
+                                      .collection('listings')
+                                      .doc(listingId)
+                                      .get();
+                                  
+                                  Navigator.of(context, rootNavigator: true).pop();
+
+                                  if (docSnapshot.exists && docSnapshot.data() != null) {
+                                     final listingData = docSnapshot.data()!;
+                                     
+                                     final fullListing = Map<String, dynamic>.from(listingData);
+                                     fullListing['id'] = listingId;
+                                     
+                                     Navigator.pushNamed(
+                                       context, 
+                                       '/listing-detail', 
+                                       arguments: { 'listing': fullListing }
+                                     );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Bu ilan artık mevcut değil.')),
+                                    );
+                                  }
+                                } catch (e) {
+                                  
+                                  if (Navigator.of(context).canPop()) {
+                                     Navigator.of(context, rootNavigator: true).pop();
+                                  }
+                                  debugPrint('Nav error: $e');
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Bir hata oluştu.')),
+                                  );
+                                }
                               }
                             },
                           ),
@@ -838,7 +1061,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               },
             ),
           
-          // Subscriptions Section
+          
           Text(
             loc.languageCode == 'tr' ? 'Aktif Aboneliklerim' : 'My Active Subscriptions',
             style: const TextStyle(

@@ -43,6 +43,29 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
+  Future<List<Map<String, dynamic>>> _fetchAllListings(String? ownerId) async {
+    if (ownerId == null || ownerId.isEmpty) return [];
+    
+    final List<Map<String, dynamic>> allListings = [];
+    
+    Future<void> fetchCategory(String cat) async {
+      try {
+        final list = await ApiService.fetchListings(ownerId: ownerId, category: cat);
+        allListings.addAll(list);
+      } catch (e) {
+        debugPrint('Error fetching $cat: $e');
+      }
+    }
+
+    await Future.wait([
+      fetchCategory('apartment'),
+      fetchCategory('house'),
+      fetchCategory('dormitory'),
+    ]);
+    
+    return allListings;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -56,6 +79,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: const Color(0xFF8B4513),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: const Color(0xFF4CAF50),
+            height: 2.0,
+          ),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -76,7 +106,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
               ),
             ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 1), // Home active since accessed from listing detail
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
     );
   }
 
@@ -166,7 +196,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return _card(
       title: 'İlanları',
       child: FutureBuilder<List<Map<String, dynamic>>>(
-        future: (widget.userId.isEmpty) ? Future.value([]) : ApiService.fetchListings(ownerId: widget.userId),
+        future: _fetchAllListings(widget.userId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

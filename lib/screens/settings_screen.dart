@@ -72,6 +72,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         elevation: 0,
         foregroundColor: textColor,
         centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: const Color(0xFF4CAF50),
+            height: 2.0,
+          ),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -169,7 +176,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 30),
         ],
       ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 2), // Profile active since accessed from Profile
+      bottomNavigationBar: const AppBottomNav(currentIndex: 2),
     );
   }
 

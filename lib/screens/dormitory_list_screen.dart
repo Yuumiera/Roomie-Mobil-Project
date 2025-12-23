@@ -6,7 +6,7 @@ import '../utils/cities.dart';
 import '../widgets/alert_subscription_dialog.dart';
 import '../widgets/premium_alert_banner.dart';
 import '../widgets/app_bottom_nav.dart';
-import '../services/api_service.dart'; // Added ApiService import
+import '../services/api_service.dart';
 
 class DormitoryListScreen extends StatefulWidget {
   const DormitoryListScreen({super.key});
@@ -19,7 +19,7 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
   Future<List<Map<String, dynamic>>>? _listingsFuture;
 
   String _selectedCity = 'Tümü';
-  int _selectedTabIndex = 0; // 0: Oda Değişimi, 1: Yurt Değişimi
+  int _selectedTabIndex = 0;
 
   @override
   void initState() {
@@ -67,7 +67,7 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
     }
   }
 
-  // Duplicate _pickImages removed from here.
+    
 
 
   void _showAddListingDialog() {
@@ -83,7 +83,7 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
     final List<String> images = [];
     String ownerName = '';
     String ownerId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    // Dormitory-specific
+    
     String roomCapacity = '';
     String bedType = 'Baza';
     bool bathroomInRoom = false;
@@ -130,10 +130,13 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: city,
-                    items: const [
-                      DropdownMenuItem(value: 'İstanbul', child: Text('İstanbul')),
-                      DropdownMenuItem(value: 'Ankara', child: Text('Ankara')),
-                      DropdownMenuItem(value: 'İzmir', child: Text('İzmir')),
+                    items: [
+                      const DropdownMenuItem(value: 'İstanbul', child: Text('İstanbul')),
+                      const DropdownMenuItem(value: 'Ankara', child: Text('Ankara')),
+                      const DropdownMenuItem(value: 'İzmir', child: Text('İzmir')),
+                      ...trCities81.where((c) => !['İstanbul', 'Ankara', 'İzmir'].contains(c)).map(
+                        (c) => DropdownMenuItem(value: c, child: Text(c)),
+                      ),
                     ],
                     onChanged: (v) => setDialogState(() => city = v ?? city),
                     decoration: const InputDecoration(labelText: 'Şehir'),
@@ -205,7 +208,7 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
                     contentPadding: EdgeInsets.zero,
                   ),
                   const SizedBox(height: 8),
-                  // Dormitory features
+                  
                   TextFormField(
                     decoration: const InputDecoration(labelText: 'Oda kaç kişilik?'),
                     keyboardType: TextInputType.number,
@@ -280,7 +283,7 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
                   'bedType': bedType,
                   'bathroomInRoom': bathroomInRoom,
                   'addressDirections': addressDirections,
-                  // timestamps added by backend
+                  
                 });
                 if (mounted) Navigator.pop(context);
                 _loadListings();
@@ -306,10 +309,7 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
     }
   }
 
-  // _listingsStream removed
-  
-  // ignore: unused_element
-  // Stream<QuerySnapshot<Map<String, dynamic>>> _listingsStream() { ... } 
+ 
 
   @override
   Widget build(BuildContext context) {
@@ -322,10 +322,17 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: const Color(0xFF4CAF50),
+        backgroundColor: Colors.transparent,
         foregroundColor: const Color(0xFF8B4513),
         elevation: 0,
         centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: const Color(0xFF4CAF50),
+            height: 2.0,
+          ),
+        ),
       ),
       body: SafeArea(
         child: Padding(
@@ -335,12 +342,12 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
             children: [
               PremiumAlertBanner(onSubscribe: _openSubscriptionDialog),
               const SizedBox(height: 16),
-              // Tabs: Oda Değişimi / Yurt Değişimi
+              
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.2)),
+                  border: Border.all(color: const Color(0xFF8B4513).withOpacity(0.2)),
                 ),
                 child: Row(
                   children: [
@@ -351,10 +358,10 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
               ),
               const SizedBox(height: 12),
 
-              // City filter dropdown
+              
               Row(
                 children: [
-                   const Icon(Icons.location_city, color: Color(0xFF4CAF50)),
+                   const Icon(Icons.location_city, color: Color(0xFF8B4513)),
                    const SizedBox(width: 8),
                    Expanded(
                      child: DropdownButtonFormField<String>(
@@ -409,11 +416,11 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addNewListing,
-        backgroundColor: const Color(0xFF4CAF50),
+        backgroundColor: const Color(0xFF8B4513),
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 1), // Home active since accessed from Home
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
     );
   }
 
@@ -425,7 +432,7 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
+            color: const Color(0xFF8B4513).withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -446,7 +453,7 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                // Image placeholder
+                
                 _buildImage(listing),
                 const SizedBox(width: 12),
                 Expanded(
@@ -564,11 +571,16 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
     final bool selected = _selectedTabIndex == index;
     return Expanded(
       child: InkWell(
-        onTap: () => setState(() => _selectedTabIndex = index),
+        onTap: () {
+          setState(() {
+            _selectedTabIndex = index;
+            _loadListings();
+          });
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF4CAF50).withOpacity(0.1) : Colors.transparent,
+            color: selected ? const Color(0xFF8B4513).withOpacity(0.1) : Colors.transparent,
             borderRadius: index == 0
                 ? const BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12))
                 : const BorderRadius.only(topRight: Radius.circular(12), bottomRight: Radius.circular(12)),
@@ -577,7 +589,7 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
           child: Text(
             text,
             style: TextStyle(
-              color: selected ? const Color(0xFF4CAF50) : const Color(0xFF8B4513),
+              color: selected ? const Color(0xFF8B4513) : const Color(0xFF8B4513).withOpacity(0.6),
               fontWeight: FontWeight.w600,
             ),
           ),

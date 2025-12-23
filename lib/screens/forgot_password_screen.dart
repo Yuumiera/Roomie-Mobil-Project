@@ -12,10 +12,17 @@ class ForgotPasswordScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: const Color(0xFF8B4513),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: const Color(0xFF4CAF50),
+            height: 2.0,
+          ),
+        ),
       ),
       body: const Center(
         child: Text(
-          'Şifremi Unuttum Ekranı\n(Yakında gelecek)',
+          'Şifremi Unuttum Ekranı\n(Coming soon)',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 18,

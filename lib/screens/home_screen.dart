@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/app_bottom_nav.dart';
+import '../services/language_controller.dart';
+import '../l10n/app_localizations.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,12 +27,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(LanguageController.instance.languageCode);
     return Scaffold(
-      backgroundColor: const Color(0xFFFDF6E3), // Same as login background
+      backgroundColor: const Color(0xFFFDF6E3),
       appBar: AppBar(
-        title: const Text(
-          'Home Page',
-          style: TextStyle(
+        title: Text(
+          loc.homePage,
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -54,9 +57,9 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               const SizedBox(height: 20),
               
-              // Welcome text
+              
               Text(
-                'Choose Your Accommodation Type',
+                loc.chooseAccommodation,
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -68,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 8),
               
               Text(
-                'Find the perfect place to call home',
+                loc.findPerfectPlace,
                 style: TextStyle(
                   fontSize: 16,
                   color: const Color(0xFFCD853F),
@@ -79,36 +82,39 @@ class _HomeScreenState extends State<HomeScreen> {
               
               const SizedBox(height: 40),
               
-              // Category Cards
+              
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Dormitory Card
+                    
                     _buildCategoryCard(
-                      title: 'Dormitory',
+                      title: loc.dormitory,
+                      subtitle: loc.sharedPrivateRoom,
                       icon: Icons.bed,
-                      color: const Color(0xFF4CAF50), // Green from login
+                      color: const Color(0xFF4CAF50),
                       onTap: () => _onCategorySelected('Dormitory'),
                     ),
                     
                     const SizedBox(height: 20),
                     
-                    // Apartment Card
+                    
                     _buildCategoryCard(
-                      title: 'Apartment',
+                      title: loc.apartment,
+                      subtitle: loc.flatsStudios,
                       icon: Icons.apartment,
-                      color: const Color(0xFF8B4513), // Brown from login
+                      color: const Color(0xFF8B4513),
                       onTap: () => _onCategorySelected('Apartment'),
                     ),
                     
                     const SizedBox(height: 20),
                     
-                    // House Card
+                    
                     _buildCategoryCard(
-                      title: 'House',
+                      title: loc.house,
+                      subtitle: loc.villasDetached,
                       icon: Icons.home,
-                      color: const Color(0xFFD4AF37), // Gold from login
+                      color: const Color(0xFFD4AF37),
                       onTap: () => _onCategorySelected('House'),
                     ),
                   ],
@@ -118,12 +124,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 1), // Home is index 1
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
     );
   }
 
   Widget _buildCategoryCard({
     required String title,
+    String? subtitle,
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
@@ -185,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Find your perfect ${title.toLowerCase()}',
+                          subtitle ?? 'Find your perfect ${title.toLowerCase()}',
                           style: TextStyle(
                             fontSize: 14,
                             color: const Color(0xFFCD853F),

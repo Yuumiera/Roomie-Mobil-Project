@@ -70,7 +70,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Future<void> _changePassword() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Check if new password is different from current
+    
     if (_currentPasswordController.text == _newPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -81,7 +81,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return;
     }
 
-    // Check if new password and confirm password match
+    
     if (_newPasswordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -102,7 +102,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         throw Exception('No user logged in');
       }
 
-      // Re-authenticate user with current password
+      
       final credential = EmailAuthProvider.credential(
         email: user.email!,
         password: _currentPasswordController.text,
@@ -110,7 +110,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
       await user.reauthenticateWithCredential(credential);
 
-      // Update password
+      
       await user.updatePassword(_newPasswordController.text);
 
       if (!mounted) return;
@@ -125,7 +125,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         ),
       );
 
-      // Navigate back to settings
+      
       Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
       setState(() {
@@ -178,6 +178,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         elevation: 0,
         foregroundColor: textColor,
         centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: const Color(0xFF4CAF50),
+            height: 2.0,
+          ),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -189,7 +196,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               children: [
                 const SizedBox(height: 20),
                 
-                // Current Password
+                
                 TextFormField(
                   controller: _currentPasswordController,
                   obscureText: _obscureCurrentPassword,
@@ -219,7 +226,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
                 const SizedBox(height: 24),
 
-                // New Password
+                
                 TextFormField(
                   controller: _newPasswordController,
                   obscureText: _obscureNewPassword,
@@ -256,7 +263,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
                 const SizedBox(height: 24),
 
-                // Confirm Password
+                
                 TextFormField(
                   controller: _confirmPasswordController,
                   obscureText: _obscureConfirmPassword,
@@ -289,7 +296,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
                 const SizedBox(height: 40),
 
-                // Submit Button
+                
                 ElevatedButton(
                   onPressed: _isLoading ? null : _changePassword,
                   style: ElevatedButton.styleFrom(
@@ -321,7 +328,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
                 const SizedBox(height: 16),
 
-                // Info Card
+                
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(

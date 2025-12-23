@@ -15,7 +15,7 @@ class _UpgradePremiumBannerState extends State<UpgradePremiumBanner> {
   bool _loading = false;
 
   Future<void> _buyPremium() async {
-    // Show Payment Dialog first
+    
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => const PaymentDialog(

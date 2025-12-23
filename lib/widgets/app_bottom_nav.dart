@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/unread_service.dart';
 
-/// Reusable bottom navigation bar widget for the app
-/// Shows Messages, Home, and Profile tabs
-/// 
-/// Parameters:
-/// - currentIndex: 0 for Messages, 1 for Home, 2 for Profile
 class AppBottomNav extends StatelessWidget {
   final int currentIndex;
 
@@ -15,10 +10,10 @@ class AppBottomNav extends StatelessWidget {
   });
 
   void _onItemTapped(BuildContext context, int index) {
-    // Don't navigate if already on this tab
+    
     if (index == currentIndex) return;
     
-    // Handle navigation based on selected tab
+    
     switch (index) {
       case 0:
         Navigator.pushReplacementNamed(context, '/messages');
@@ -66,7 +61,7 @@ class AppBottomNav extends StatelessWidget {
             ),
           ],
           currentIndex: currentIndex,
-          selectedItemColor: const Color(0xFF8B4513), // Brown from sign-in page
+          selectedItemColor: const Color(0xFF8B4513),
           unselectedItemColor: Colors.grey,
           onTap: (index) => _onItemTapped(context, index),
           backgroundColor: Colors.white,

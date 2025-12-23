@@ -6,9 +6,9 @@ import 'api_service.dart';
 class PremiumService {
   static String get _baseUrl => ApiService.baseUrl;
 
-  /// Upgrades the user to premium (Mock Payment)
+  
   static Future<bool> upgradeToPremium(String userId) async {
-    final url = Uri.parse('$_baseUrl/api/payment/premium'); // Ensure /api prefix if missing in base
+    final url = Uri.parse('$_baseUrl/api/payment/premium');
     debugPrint('🔌 PREMIUM REQUEST TO: $url');
     try {
       final response = await http.post(
@@ -16,7 +16,7 @@ class PremiumService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'userId': userId,
-          'amount': 10, // Pricing
+          'amount': 10,
           'currency': 'USD',
         }),
       );
@@ -37,7 +37,7 @@ class PremiumService {
   }
 
 
-  /// Cancels the user's premium subscription
+  
   static Future<bool> cancelSubscription(String userId) async {
     final url = Uri.parse('$_baseUrl/api/payment/cancel'); 
     debugPrint('🔌 CANCEL PREMIUM REQUEST TO: $url');

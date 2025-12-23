@@ -37,11 +37,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: ThemeController.instance,
+      animation: Listenable.merge([ThemeController.instance, LanguageController.instance]),
       builder: (context, _) {
         return MaterialApp(
           navigatorKey: MessageNotificationService.instance.navigatorKey,
           title: 'Roomie - Ev Arkadaşı Bul',
+          locale: LanguageController.instance.locale,
           themeMode: ThemeController.instance.mode,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFD4AF37)),

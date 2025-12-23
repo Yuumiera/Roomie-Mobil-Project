@@ -30,14 +30,14 @@ class _ChatScreenState extends State<ChatScreen> {
     _conversationId = _buildConversationId(_currentUserId, widget.otherUserId);
     _loadMessages();
     
-    // Mark conversation as read
+    
     if (_currentUserId.isNotEmpty) {
       ApiService.markConversationAsRead(_conversationId, _currentUserId).catchError((e) {
         debugPrint('Error marking as read: $e');
       });
     }
     
-    // Poll every 3 seconds
+    
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
       _loadMessages(background: true);
     });
@@ -76,7 +76,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _messageController.text.trim();
     if (text.isEmpty || _currentUserId.isEmpty) return;
 
-    // Optimistically add message to UI immediately
+    
     final optimisticMessage = {
       'senderId': _currentUserId,
       'text': text,
@@ -84,7 +84,7 @@ class _ChatScreenState extends State<ChatScreen> {
     };
     
     setState(() {
-      _messages.insert(0, optimisticMessage); // Add to front (newest)
+      _messages.insert(0, optimisticMessage);
     });
     
     _messageController.clear();
@@ -96,10 +96,10 @@ class _ChatScreenState extends State<ChatScreen> {
         text,
         [_currentUserId, widget.otherUserId]
       );
-      // Reload messages from backend to sync
+      
       await _loadMessages(background: true);
     } catch (e) {
-      // Remove optimistic message on error
+      
       setState(() {
         _messages.removeWhere((m) => 
           m['senderId'] == _currentUserId && 
@@ -148,7 +148,14 @@ class _ChatScreenState extends State<ChatScreen> {
             },
           ),
         ),
-        backgroundColor: const Color(0xFF4CAF50),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: const Color(0xFF4CAF50),
+            height: 2.0,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
         foregroundColor: const Color(0xFF8B4513),
         elevation: 0,
         centerTitle: true,
@@ -165,10 +172,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         reverse: true,
                         itemCount: _messages.length,
                         itemBuilder: (context, index) {
-                          // Messages are fetched latest first in API (descending).
-                          // ListView is reverse: true, so index 0 is at bottom.
-                          // If API returns desc (newest first), then index 0 is newest.
-                          // So it matches reverse: true.
+                          
                           final data = _messages[index];
                           final isMine = data['senderId'] == _currentUserId;
                           return Align(

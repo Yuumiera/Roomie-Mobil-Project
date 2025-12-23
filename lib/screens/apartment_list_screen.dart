@@ -17,12 +17,12 @@ class ApartmentListScreen extends StatefulWidget {
 
 class _ApartmentListScreenState extends State<ApartmentListScreen> {
   String _selectedCity = 'Tümü';
-  // Advanced Filter Params
-  String _sortBy = 'default'; // 'default', 'compatibility'
+  
+  String _sortBy = 'default';
   bool _filterPetFriendly = false;
   String? _filterGender;
   
-  // We use a Future for the API call
+  
   late Future<List<Map<String, dynamic>>> _listingsFuture;
   
   bool _isPremium = false;
@@ -31,7 +31,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
   @override
   void initState() {
     super.initState();
-    _checkUserPremium(); // Check status on init
+    _checkUserPremium();
     _loadListings();
   }
   
@@ -64,7 +64,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
 
   Future<void> _openSubscriptionDialog() async {
     if (!_isPremium) {
-      // Upsell for non-premium users
+      
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -131,7 +131,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
     final List<String> images = List<String>.from(existingListing?['images'] as List? ?? []);
     String ownerName = existingListing?['ownerName'] as String? ?? '';
     final String ownerId = existingListing?['ownerId'] as String? ?? FirebaseAuth.instance.currentUser?.uid ?? '';
-    // Apartment/House common features
+    
     String roomCount = existingListing?['roomCount'] as String? ?? '';
     bool hasBalcony = existingListing?['hasBalcony'] as bool? ?? false;
     String balconyCount = existingListing?['balconyCount'] as String? ?? '';
@@ -197,7 +197,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                     decoration: const InputDecoration(labelText: 'Şehir'),
                   ),
                   const SizedBox(height: 8),
-                  // ownerId artık otomatik atanıyor; kullanıcıdan alınmıyor
+                  
                   Align(
                     alignment: Alignment.centerLeft,
                     child: TextButton.icon(
@@ -283,7 +283,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                     contentPadding: EdgeInsets.zero,
                   ),
                   const SizedBox(height: 8),
-                  // Apartment specific features
+                  
                   TextFormField(
                     decoration: const InputDecoration(labelText: 'Oda sayısı (örn. 2+1)'),
                     onSaved: (v) => roomCount = v?.trim() ?? '',
@@ -392,7 +392,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                   'city': city,
                   'imageUrl': imageUrl,
                   'petsAllowed': petsAllowed,
-                  'images': images, // local paths won't sync; keep optional
+                  'images': images,
                   'ownerName': finalOwnerName.isNotEmpty ? finalOwnerName : ownerName,
                   'ownerId': ownerId,
                   'category': 'apartment',
@@ -410,7 +410,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                   'hasDues': hasDues,
                   'duesAmount': duesAmount,
                   'addressDirections': addressDirections,
-                  // timestamps added by backend
+                  
                 };
 
                 if (isEditing && listingId != null) {
@@ -420,7 +420,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                 }
                 
                 Navigator.pop(context);
-                // Refresh the list through API
+                
                 _loadListings();
               },
               child: Text(isEditing ? 'Güncelle' : 'Ekle'),
@@ -456,6 +456,13 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
             },
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: const Color(0xFF4CAF50),
+            height: 2.0,
+          ),
+        ),
       ),
       body: SafeArea(
         child: Padding(
@@ -559,7 +566,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 1), // Home active since accessed from Home
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
     );
   }
 
@@ -621,7 +628,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                   ),
                 Row(
                   children: [
-                // Image placeholder
+                
                 _buildImage(listing),
                 const SizedBox(width: 12),
                 Expanded(
@@ -678,7 +685,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                     ],
                   ),
                 ),
-                // Show edit/delete for owner, arrow for others
+                
                 if (isOwner && listingId != null)
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -694,7 +701,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                         onPressed: () async {
                           try {
                             await ApiService.deleteListing(listingId);
-                            _loadListings(); // Refresh
+                            _loadListings();
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('İlan silindi')),
                             );
@@ -715,7 +722,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                   ),
               ],
             ),
-             ], // Close Column
+             ],
             ),
           ),
         ),
@@ -821,7 +828,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                     ),
                     const SizedBox(height: 16),
                     
-                    // SORTING
+                    
                      const Text('Sıralama', style: TextStyle(fontWeight: FontWeight.bold)),
                      RadioListTile<String>(
                         title: const Text('En Yeni'),
@@ -850,7 +857,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                      
                      const Divider(),
                      
-                     // FILTERS (Premium Only)
+                     
                      const Text('Filtreler (Premium)', style: TextStyle(fontWeight: FontWeight.bold)),
                      Opacity(
                         opacity: _isPremium ? 1.0 : 0.5,
@@ -865,14 +872,14 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                         ),
                      ),
                      
-                     // Upsell if not premium
+                     
                      if (!_isPremium)
                        Padding(
                          padding: const EdgeInsets.only(top: 8.0),
                          child: ElevatedButton(
                            onPressed: () {
-                             Navigator.pop(context); // Close sheet
-                             Navigator.pushNamed(context, '/settings'); // Or show payment banner
+                             Navigator.pop(context); 
+                             Navigator.pushNamed(context, '/settings');
                              ScaffoldMessenger.of(context).showSnackBar(
                                const SnackBar(content: Text('Profile gidip Premium alabilirsiniz.')),
                              );

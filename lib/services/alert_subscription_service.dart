@@ -19,13 +19,7 @@ class AlertSubscriptionService {
 
     final sanitizedCriteria = _sanitizeCriteria(criteria);
     final criteriaKey = _criteriaKey(sanitizedCriteria);
-    // dates handled by backend usually, but for expiresAt logic:
-    // Backend creates 'createdAt'. But 'expiresAt' relies on duration.
-    // Client should probably send 'expiresAt' or backend calculates it? 
-    // Backend doesn't know about 'subscriptionDuration'.
-    // So Client sends 'expiresAt'.
-    // BUT we need to send it as ISO string for JSON safe transfer if backend expects date string or number.
-    // FireStore timestamp is NOT json encodable directly.
+    
     
     final now = DateTime.now();
     final expiresAt = now.add(subscriptionDuration);
@@ -40,9 +34,9 @@ class AlertSubscriptionService {
       'category': sanitizedCriteria['category'] as String?,
       'type': sanitizedCriteria['type'] as String?,
       'maxPrice': (sanitizedCriteria['maxPrice'] as num?)?.toDouble(),
-      // Send dates as ISO String for API compatibility
+      
       'expiresAt': expiresAt.toIso8601String(), 
-      // Backend sets createdAt
+      
     };
 
     await ApiService.createSubscription(subscriptionData);
