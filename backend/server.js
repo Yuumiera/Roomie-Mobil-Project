@@ -8,7 +8,8 @@ const PORT = 3000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Increased limit for base64 images
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use((req, res, next) => {
     console.log(`[REQUEST] ${req.method} ${req.url}`);
     next();
@@ -16,7 +17,8 @@ app.use((req, res, next) => {
 
 // Initialize Firebase Admin
 admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+    credential: admin.credential.cert(serviceAccount),
+    storageBucket: 'roomie-mobil-project.firebasestorage.app'
 });
 
 const db = admin.firestore();
@@ -612,6 +614,62 @@ app.get('/api/subscriptions', async (req, res) => {
     } catch (error) {
         console.error('Error fetching subscriptions:', error);
         res.status(500).json({ error: 'Failed to fetch subscriptions' });
+    }
+});
+
+// --- IMAGE UPLOAD ---
+
+// POST /api/upload-images
+// Upload images to Firebase Storage and return URLs
+app.post('/api/upload-images', async (req, res) => {
+    try {
+        const { images, userId } = req.body;
+
+        if (!images || !Array.isArray(images) || images.length === 0) {
+            return res.status(400).json({ error: 'Images array is required' });
+        }
+
+        if (!userId) {
+            return res.status(400).json({ error: 'UserId is required' });
+        }
+
+        const bucket = admin.storage().bucket();
+        const imageUrls = [];
+
+        for (let i = 0; i < images.length; i++) {
+            const base64Image = images[i];
+
+            // Extract base64 data (remove data:image/jpeg;base64, prefix if exists)
+            const base64Data = base64Image.includes(',')
+                ? base64Image.split(',')[1]
+                : base64Image;
+
+            const buffer = Buffer.from(base64Data, 'base64');
+
+            // Generate unique filename
+            const timestamp = Date.now();
+            const fileName = `listings/${userId}/${timestamp}_${i}.jpg`;
+            const file = bucket.file(fileName);
+
+            // Upload to Firebase Storage
+            await file.save(buffer, {
+                metadata: {
+                    contentType: 'image/jpeg',
+                },
+                public: true, // Make publicly accessible
+            });
+
+            // Get public URL
+            const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+            imageUrls.push(publicUrl);
+
+            console.log(`✅ Image ${i} uploaded: ${publicUrl}`);
+        }
+
+        res.json({ imageUrls });
+    } catch (error) {
+        console.error('Error uploading images:', error);
+        res.status(500).json({ error: 'Failed to upload images', details: error.message });
     }
 });
 

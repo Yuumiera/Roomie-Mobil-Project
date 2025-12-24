@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/cities.dart';
@@ -7,6 +8,7 @@ import '../widgets/alert_subscription_dialog.dart';
 import '../widgets/premium_alert_banner.dart';
 import '../widgets/app_bottom_nav.dart';
 import '../services/api_service.dart';
+import '../services/image_upload_service.dart';
 
 class ApartmentListScreen extends StatefulWidget {
   const ApartmentListScreen({super.key});
@@ -371,6 +373,25 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                   return;
                 }
 
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const Center(child: CircularProgressIndicator()),
+                );
+
+                // Upload images to Firebase Storage
+                List<String> imageUrls = [];
+                try {
+                  final uid = ownerId.isNotEmpty ? ownerId : FirebaseAuth.instance.currentUser!.uid;
+                  imageUrls = await ImageUploadService.uploadImages(images, uid);
+                } catch (e) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Görsel yükleme hatası: $e')),
+                  );
+                  return;
+                }
+
                 String finalOwnerName = ownerName;
                 try {
                   final uid = ownerId;
@@ -390,9 +411,9 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                   'price': '₺$price',
                   'location': location.isEmpty ? city : location,
                   'city': city,
-                  'imageUrl': imageUrl,
+                  'imageUrl': imageUrls.isNotEmpty ? imageUrls.first : '',
                   'petsAllowed': petsAllowed,
-                  'images': images,
+                  'images': imageUrls,
                   'ownerName': finalOwnerName.isNotEmpty ? finalOwnerName : ownerName,
                   'ownerId': ownerId,
                   'category': 'apartment',
@@ -410,18 +431,24 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
                   'hasDues': hasDues,
                   'duesAmount': duesAmount,
                   'addressDirections': addressDirections,
-                  
                 };
 
-                if (isEditing && listingId != null) {
-                  await ApiService.updateListing(listingId, listingData);
-                } else {
-                  await ApiService.createListing(listingData);
+                try {
+                  if (isEditing && listingId != null) {
+                    await ApiService.updateListing(listingId, listingData);
+                  } else {
+                    await ApiService.createListing(listingData);
+                  }
+                  
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                  _loadListings();
+                } catch (e) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Hata: $e')),
+                  );
                 }
-                
-                Navigator.pop(context);
-                
-                _loadListings();
               },
               child: Text(isEditing ? 'Güncelle' : 'Ekle'),
             ),
@@ -731,13 +758,54 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
   }
 
   Widget _buildImage(Map<String, dynamic> listing) {
-    final List<dynamic>? localImages = listing['images'] as List<dynamic>?;
-    if (localImages != null && localImages.isNotEmpty) {
-      final String firstPath = localImages.first as String;
+    final List<dynamic>? images = listing['images'] as List<dynamic>?;
+    if (images != null && images.isNotEmpty) {
+      final String firstImage = images.first as String;
+      
+      // Check if it's a base64 string
+      if (firstImage.startsWith('data:image')) {
+        try {
+          final base64String = firstImage.split(',').last;
+          final bytes = base64Decode(base64String);
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(
+              bytes,
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stack) {
+                return _imagePlaceholder();
+              },
+            ),
+          );
+        } catch (e) {
+          debugPrint('Base64 decode error: $e');
+          return _imagePlaceholder();
+        }
+      }
+      
+      // Check if it's a network URL
+      if (firstImage.startsWith('http')) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            firstImage,
+            width: 80,
+            height: 80,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stack) {
+              return _imagePlaceholder();
+            },
+          ),
+        );
+      }
+      
+      // Otherwise treat as local file path (for backwards compatibility)
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Image.file(
-          File(firstPath),
+          File(firstImage),
           width: 80,
           height: 80,
           fit: BoxFit.cover,
@@ -747,8 +815,32 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
         ),
       );
     }
+    
     final String? imageUrl = listing['imageUrl'] as String?;
     if (imageUrl != null && imageUrl.isNotEmpty) {
+      // Check if it's a base64 string
+      if (imageUrl.startsWith('data:image')) {
+        try {
+          final base64String = imageUrl.split(',').last;
+          final bytes = base64Decode(base64String);
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(
+              bytes,
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stack) {
+                return _imagePlaceholder();
+              },
+            ),
+          );
+        } catch (e) {
+          debugPrint('Base64 decode error: $e');
+          return _imagePlaceholder();
+        }
+      }
+      
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Image.network(
@@ -784,7 +876,7 @@ class _ApartmentListScreenState extends State<ApartmentListScreen> {
   Future<List<String>?> _pickImages() async {
     try {
       final ImagePicker picker = ImagePicker();
-      final List<XFile> files = await picker.pickMultiImage(imageQuality: 90);
+      final List<XFile> files = await picker.pickMultiImage(imageQuality: 15); // Very low quality for small size
       if (files.isEmpty) return null;
       return files.map((f) => f.path).toList();
     } catch (e) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/api_service.dart';
@@ -51,7 +52,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
           title.isEmpty ? 'İlan Detayı' : title,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: const Color(0xFF4CAF50),
+        backgroundColor: Colors.transparent,
         foregroundColor: const Color(0xFF8B4513),
         elevation: 0,
         centerTitle: true,
@@ -198,7 +199,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                       petsAllowed ? 'Evcil hayvan kabul edilir' : 'Evcil hayvan kabul edilmez',
                       style: TextStyle(
                         fontSize: 14,
-                        color: petsAllowed ? const Color(0xFF4CAF50) : Colors.redAccent,
+                        color: petsAllowed ? const Color(0xFF8B4513) : Colors.redAccent,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -296,8 +297,27 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   }
 
   bool _isNetworkUrl(String path) => path.startsWith('http://') || path.startsWith('https://');
+  bool _isBase64(String path) => path.startsWith('data:image');
 
   Widget _buildImageWidget(String path, {double? width, double? height}) {
+    // Check if base64
+    if (_isBase64(path)) {
+      try {
+        final base64String = path.split(',').last;
+        final bytes = base64Decode(base64String);
+        return Image.memory(
+          bytes,
+          width: width,
+          height: height,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stack) => _placeholder(),
+        );
+      } catch (e) {
+        debugPrint('Base64 decode error: $e');
+        return _placeholder();
+      }
+    }
+    
     if (_isNetworkUrl(path)) {
       return Image.network(
         path,
