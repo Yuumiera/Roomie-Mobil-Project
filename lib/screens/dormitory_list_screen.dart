@@ -7,6 +7,7 @@ import '../widgets/alert_subscription_dialog.dart';
 import '../widgets/premium_alert_banner.dart';
 import '../widgets/app_bottom_nav.dart';
 import '../services/api_service.dart';
+import '../services/image_upload_service.dart';
 
 class DormitoryListScreen extends StatefulWidget {
   const DormitoryListScreen({super.key});
@@ -253,6 +254,26 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
                   return;
                 }
 
+                
+                // Upload images
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const Center(child: CircularProgressIndicator()),
+                );
+
+                List<String> imageUrls = [];
+                try {
+                  final uid = ownerId.isNotEmpty ? ownerId : FirebaseAuth.instance.currentUser!.uid;
+                  imageUrls = await ImageUploadService.uploadImages(images, uid);
+                } catch (e) {
+                  Navigator.pop(context); // close loading
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Görsel yükleme hatası: $e')),
+                  );
+                  return;
+                }
+
                 String finalOwnerName = ownerName;
                 try {
                   final uid = ownerId;
@@ -272,10 +293,10 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
                   'price': '₺$price',
                   'location': location,
                   'city': city,
-                  'imageUrl': imageUrl,
+                  'imageUrl': imageUrls.isNotEmpty ? imageUrls.first : '',
                   'type': type,
                   'petsAllowed': petsAllowed,
-                  'images': images,
+                  'images': imageUrls,
                   'ownerName': finalOwnerName.isNotEmpty ? finalOwnerName : ownerName,
                   'ownerId': ownerId,
                   'category': 'dormitory',
@@ -285,7 +306,10 @@ class _DormitoryListScreenState extends State<DormitoryListScreen> {
                   'addressDirections': addressDirections,
                   
                 });
-                if (mounted) Navigator.pop(context);
+                if (mounted) {
+                   Navigator.pop(context); // close loading
+                   Navigator.pop(context); // close dialog
+                }
                 _loadListings();
               },
               child: const Text('Ekle'),

@@ -7,6 +7,7 @@ import '../utils/cities.dart';
 import '../widgets/alert_subscription_dialog.dart';
 import '../widgets/premium_alert_banner.dart';
 import '../widgets/app_bottom_nav.dart';
+import '../services/image_upload_service.dart';
 
 class HouseListScreen extends StatefulWidget {
   const HouseListScreen({super.key});
@@ -189,6 +190,26 @@ class _HouseListScreenState extends State<HouseListScreen> {
                        return;
                     }
                     
+                    
+                    // Upload images to Firebase Storage
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (_) => const Center(child: CircularProgressIndicator()),
+                    );
+
+                    List<String> imageUrls = [];
+                    try {
+                      final uid = ownerId.isNotEmpty ? ownerId : FirebaseAuth.instance.currentUser!.uid;
+                      imageUrls = await ImageUploadService.uploadImages(images, uid);
+                    } catch (e) {
+                      Navigator.pop(context); // close loading
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Görsel yükleme hatası: $e')),
+                      );
+                      return;
+                    }
+
                     String finalOwnerName = ownerName;
                     try {
                       final uid = ownerId;
@@ -208,9 +229,9 @@ class _HouseListScreenState extends State<HouseListScreen> {
                        'price': '₺$price',
                        'location': location.isEmpty ? city : location,
                        'city': city,
-                       'imageUrl': imageUrl,
+                       'imageUrl': imageUrls.isNotEmpty ? imageUrls.first : '',
                        'petsAllowed': petsAllowed,
-                       'images': images,
+                       'images': imageUrls,
                        'ownerName': finalOwnerName.isNotEmpty ? finalOwnerName : ownerName,
                        'ownerId': ownerId,
                        'category': 'house',
@@ -222,7 +243,10 @@ class _HouseListScreenState extends State<HouseListScreen> {
                        'addressDirections': addressDirections,
                        
                     });
-                    if (mounted) Navigator.pop(context);
+                    if (mounted) {
+                       Navigator.pop(context); // close loading
+                       Navigator.pop(context); // close dialog
+                    }
                     _loadListings();
                   },
                   child: const Text('Ekle'),

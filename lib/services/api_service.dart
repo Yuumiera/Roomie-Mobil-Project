@@ -7,7 +7,6 @@ import '../models/chat_model.dart';
 class ApiService {
   
   static String get baseUrl {
-    
     return 'https://roomie-mobil-project.onrender.com';
   }
 

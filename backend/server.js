@@ -17,8 +17,9 @@ app.use((req, res, next) => {
 
 // Initialize Firebase Admin
 admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: 'roomie-mobil-project.firebasestorage.app'
+    credential: admin.credential.cert(serviceAccount)
+    // storageBucket is optional if using default, but if failed let's try leaving it empty or using explicit name only if known.
+    // admin.storage().bucket() without args uses 'project-id.appspot.com' usually.
 });
 
 const db = admin.firestore();
@@ -617,10 +618,10 @@ app.get('/api/subscriptions', async (req, res) => {
     }
 });
 
-// --- IMAGE UPLOAD ---
+// --- CUSTOM FIRESTORE IMAGE STORAGE (Bypasses Storage Billing) ---
+// Note: Firestore documents are limited to 1MB. Large images may fail.
 
 // POST /api/upload-images
-// Upload images to Firebase Storage and return URLs
 app.post('/api/upload-images', async (req, res) => {
     try {
         const { images, userId } = req.body;
@@ -633,43 +634,78 @@ app.post('/api/upload-images', async (req, res) => {
             return res.status(400).json({ error: 'UserId is required' });
         }
 
-        const bucket = admin.storage().bucket();
         const imageUrls = [];
 
         for (let i = 0; i < images.length; i++) {
             const base64Image = images[i];
 
-            // Extract base64 data (remove data:image/jpeg;base64, prefix if exists)
+            // Extract base64
             const base64Data = base64Image.includes(',')
                 ? base64Image.split(',')[1]
                 : base64Image;
 
             const buffer = Buffer.from(base64Data, 'base64');
 
-            // Generate unique filename
-            const timestamp = Date.now();
-            const fileName = `listings/${userId}/${timestamp}_${i}.jpg`;
-            const file = bucket.file(fileName);
+            // Check size (Firestore limit ~1MB)
+            if (buffer.length > 1000000) {
+                console.warn(`Image ${i} is too large (${buffer.length} bytes). Skipping.`);
+                continue;
+                // Alternatively, we could resize here if we had a library like sharp, 
+                // but for now we just warn/skip or try and fail.
+            }
 
-            // Upload to Firebase Storage
-            await file.save(buffer, {
-                metadata: {
-                    contentType: 'image/jpeg',
-                },
-                public: true, // Make publicly accessible
+            // Save to 'storage_images' collection
+            const docRef = await db.collection('storage_images').add({
+                userId: userId,
+                contentType: 'image/jpeg',
+                data: buffer, // Stored as Binary Blob
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
             });
 
-            // Get public URL
-            const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-            imageUrls.push(publicUrl);
+            // Generate URL that points to OUR server endpoint
+            const protocol = req.protocol;
+            const host = req.get('host');
+            const publicUrl = `${protocol}://${host}/api/images/${docRef.id}`;
 
-            console.log(`✅ Image ${i} uploaded: ${publicUrl}`);
+            imageUrls.push(publicUrl);
+            console.log(`✅ Image saved to Firestore DB: ${docRef.id}`);
         }
 
         res.json({ imageUrls });
     } catch (error) {
-        console.error('Error uploading images:', error);
-        res.status(500).json({ error: 'Failed to upload images', details: error.message });
+        console.error('Error saving images to Firestore:', error);
+        res.status(500).json({ error: 'Failed to save images', details: error.message });
+    }
+});
+
+// GET /api/images/:id
+// Serve image from Firestore
+app.get('/api/images/:id', async (req, res) => {
+    try {
+        const docId = req.params.id;
+        const doc = await db.collection('storage_images').doc(docId).get();
+
+        if (!doc.exists) {
+            return res.status(404).send('Image not found');
+        }
+
+        const data = doc.data();
+        if (!data.data) {
+            return res.status(404).send('Image data invalid');
+        }
+
+        // Set Headers
+        res.setHeader('Content-Type', data.contentType || 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+
+        // Send buffer
+        // Firestore Blob returns Uint8Array or similar depending on SDK version
+        // In Node admin SDK, it works well with res.send(buffer)
+        res.send(data.data);
+
+    } catch (error) {
+        console.error('Error serving image:', error);
+        res.status(500).send('Error serving image');
     }
 });
 
