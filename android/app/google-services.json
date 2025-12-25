@@ -12,7 +12,20 @@
           "package_name": "com.example.roomie_mobil_project"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "868166433453-3ojde42rqftrl0nrf0pn23lch21t94id.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.roomie_mobil_project",
+            "certificate_hash": "66c3570bd8fe423779d286645bfb49f4b9a0856f"
+          }
+        },
+        {
+          "client_id": "868166433453-vv1rlj1h3kucnj13i40eag3gc181ltv4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBiRTFGu71kaXAVjBl_rZo1n5gn8ncm1W8"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "868166433453-vv1rlj1h3kucnj13i40eag3gc181ltv4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

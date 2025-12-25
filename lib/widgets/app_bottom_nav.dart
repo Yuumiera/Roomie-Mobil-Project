@@ -38,13 +38,19 @@ class AppBottomNav extends StatelessWidget {
           items: <BottomNavigationBarItem>[
             BottomNavigationBarItem(
               icon: Badge(
-                label: unreadCount > 0 ? Text('$unreadCount') : null,
+                label: unreadCount > 0 
+                  ? Text('$unreadCount', style: const TextStyle(color: Colors.white, fontSize: 10)) 
+                  : null,
                 isLabelVisible: unreadCount > 0,
+                backgroundColor: Colors.red,
                 child: const Icon(Icons.message_outlined),
               ),
               activeIcon: Badge(
-                label: unreadCount > 0 ? Text('$unreadCount') : null,
+                label: unreadCount > 0 
+                  ? Text('$unreadCount', style: const TextStyle(color: Colors.white, fontSize: 10)) 
+                  : null,
                 isLabelVisible: unreadCount > 0,
+                backgroundColor: Colors.red,
                 child: const Icon(Icons.message),
               ),
               label: 'Messages',

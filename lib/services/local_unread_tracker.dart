@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalUnreadTracker {
@@ -25,6 +26,7 @@ class LocalUnreadTracker {
   Future<bool> hasUnread(String conversationId, DateTime lastMessageTime, String lastMessageSenderId, String currentUserId) async {
     
     if (lastMessageSenderId == currentUserId || lastMessageSenderId.isEmpty) {
+      // debugPrint('🚫 Sender is current user or empty. Sender: $lastMessageSenderId, Me: $currentUserId');
       return false;
     }
     
@@ -32,7 +34,6 @@ class LocalUnreadTracker {
     
     
     if (lastSeen == null) return true;
-    
     
     return lastMessageTime.isAfter(lastSeen);
   }

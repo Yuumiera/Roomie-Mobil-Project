@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../services/local_unread_tracker.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key, required this.otherUserId, required this.otherUserName});
@@ -43,6 +44,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _markAsRead() async {
     try {
+      // Update local tracker first for immediate UI feedback
+      await LocalUnreadTracker.instance.markConversationAsSeen(_conversationId);
+      
       await FirebaseFirestore.instance
           .collection('conversations')
           .doc(_conversationId)

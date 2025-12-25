@@ -23,6 +23,12 @@ class Chat {
     
     
     final unreadMap = <String, int>{};
+    if (json['unreadCount'] != null && json['unreadCount'] is Map) {
+      final map = json['unreadCount'] as Map<String, dynamic>;
+      map.forEach((key, value) {
+        unreadMap[key] = value is int ? value : 0;
+      });
+    }
     
     
     DateTime time = DateTime.now();

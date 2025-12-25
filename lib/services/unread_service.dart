@@ -35,7 +35,7 @@ class UnreadService extends ChangeNotifier {
   }
   
   void _startPolling(String userId) {
-    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       _checkUnreadCount(userId);
     });
     _checkUnreadCount(userId);
@@ -48,15 +48,11 @@ class UnreadService extends ChangeNotifier {
       
       for (final chat in conversations) {
         
-        final hasUnread = await LocalUnreadTracker.instance.hasUnread(
-          chat.id,
-          chat.lastMessageTime,
-          chat.lastMessageSenderId,
-          userId,
-        );
+        // Use Server-Side Unread Count
+        final int count = chat.unreadCount[userId] ?? 0;
         
-        if (hasUnread) {
-          total += 1;
+        if (count > 0) {
+          total += count; // Add actual number of unread messages
         }
       }
       
