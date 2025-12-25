@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "868166433453-3ojde42rqftrl0nrf0pn23lch21t94id.apps.googleusercontent.com",
+          "client_id": "868166433453-mi8onkkjevuqg9ug0n2csgnh9dbj90uu.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.roomie_mobil_project",
-            "certificate_hash": "66c3570bd8fe423779d286645bfb49f4b9a0856f"
+            "certificate_hash": "33b4187447c48adcea619ce8370d44c79c4dabd7"
           }
         },
         {
